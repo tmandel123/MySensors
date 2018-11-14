@@ -74,10 +74,10 @@
 	#define PULSE_FACTOR				1000				// Number of blinks per m3 of your meter (One rotation/liter)
 	#define MAX_FLOW					40					// Max flow (l/min) value to report. This filters outliers.
 	#define CHILD_NAME					"Gasmeter"			// Optional child sensor name
-	volatile uint16_t minValue = 		40;
-	volatile uint16_t maxValue = 		250;
-	volatile uint16_t highThreshold =	50;					// higher threshold for analog readings
-	volatile uint16_t lowThreshold =	33;					// lower threshold for analog readings
+	volatile uint16_t minValue = 		267;
+	volatile uint16_t maxValue = 		513;
+	volatile uint16_t highThreshold =	430;					// higher threshold for analog readings
+	volatile uint16_t lowThreshold =	350;					// lower threshold for analog readings
 #endif
 
 
@@ -165,15 +165,18 @@ void setup()
 	// Fetch the last set thresholds from EEPROM
 	uint16_t high = readEeprom(EEPROM_HI_THRESHOLD);//16 Bit , weil 1024 nicht in 8 Bit reinpasst
 	uint16_t low = readEeprom(EEPROM_LO_THRESHOLD); //16 Bit
-	if (high > 0 || low > 0) {
+	if (high == 0 || high == 65535 || low == 0 || low == 65535) 
+	{
+		
+		debugMessage("High threshold set to standard value: ", String(highThreshold));
+		debugMessage("Low threshold set to standard value: ", String(lowThreshold));
+	}
+	else 
+	{
 		highThreshold = high;
 		lowThreshold = low;
 		debugMessage("High threshold fetched from EEPROM, value: ", String(highThreshold));
 		debugMessage("Low threshold fetched from EEPROM, value: ", String(lowThreshold));
-	}
-	else {
-		debugMessage("High threshold set to standard value: ", String(highThreshold));
-		debugMessage("Low threshold set to standard value: ", String(lowThreshold));
 	}
 	midValue=uint16_t((lowThreshold+highThreshold)/2);
 	debugMessage("midValue: ", String(midValue));
@@ -497,8 +500,8 @@ uint16_t readEeprom(uint8_t pos)
   // function for reading the values from the internal EEPROM
   // pos = the first byte position to read the value from 
 
-  uint8_t hiByte;
-  uint8_t loByte;
+  uint16_t hiByte;
+  uint16_t loByte;
 
   hiByte = loadState(pos) << 8;
   pos++;
@@ -506,7 +509,7 @@ uint16_t readEeprom(uint8_t pos)
   
   Serial.print("readEeprom: Pos ");
   Serial.print(pos);
-  Serial.print("Value ");
+  Serial.print(" Value ");
   Serial.println(hiByte | loByte);
   
   return (hiByte | loByte);
