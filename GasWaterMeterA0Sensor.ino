@@ -20,8 +20,8 @@
  
  
 // 20161012 Verison 1.2		IsAlive hinzugefügt
-// 20161110	Version 1.3		Entprellen optimiert
-// 20170221	Version 2.0		Umstellung auf Analog
+// 20161110 Version 1.3		Entprellen optimiert
+// 20170221 Version 2.0		Umstellung auf Analog
 // 20170310 Version 2.1		Optimierung der Min/Max Werte
 // 20180102 Version 2.2		Codeoptimierung, MinSend alle 10 Minuten funktioniert immer noch nicht
 // 20180205 Version 2.3.1	Umstellung auf Lib 2.2.0, RepeaterFeature deaktiviert
