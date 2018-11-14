@@ -26,7 +26,8 @@
 // 20180102 Version 2.2   	Codeoptimierung, MinSend alle 10 Minuten funktioniert immer noch nicht
 // 20180205 Version 2.3.1   Umstellung auf Lib 2.2.0, RepeaterFeature deaktiviert
 //							HEARTBEAT alle 5 Minuten
-// 20181112 Version 2.3.2   bei receive() #defindes für CHILD_ID und CHILD_ID_DEBUG verwendet (vor 1 und 3 fest eingebaut)
+// 20181112 Version 2.3.2   Umstellung auf Lib 2.3.0
+//							bei receive() #defines für CHILD_ID und CHILD_ID_DEBUG verwendet (vorher 1 und 3 fest eingebaut)
 // 20181113 Version 2.4.0   Gas und Water Meter Sketche zusammengeführt. Mit #define WATER wird Wasserzähler aktiviert. Durch Auskommentieren der Gaszähler
 //							unsigned int sensorValue; (vorher nur int)
 // 							debuglevel bei EEPROM Wert von 255 (also bisher nicht beschrieben) auf 0 setzten und ins EEPROM schreiben
