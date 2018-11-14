@@ -45,6 +45,8 @@
 // testen, ob der Sketch weiterzählt, auch wenn kein Gateway verfügbar ist
 
 
+#define SKETCH_VER						"2.4.1"				// Sketch version
+
 #define MY_RADIO_NRF24
 #define MY_DEBUG //muss vor MySensors.h stehen
 #define MY_REPEATER_FEATURE
@@ -80,7 +82,7 @@
 
 
 // Node and sketch information
-#define SKETCH_VER						"2.4.1"				// Sketch version
+
 #define CHILD_ID						1					// Id of the sensor child
 #define CHILD_ID_ANALOG					2					//ID für Threshold Werte
 #define CHILD_ID_DEBUG					3					// Debug setzen und lesen
