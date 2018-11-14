@@ -22,15 +22,15 @@
 // 20161012 Verison 1.2		IsAlive hinzugefügt
 // 20161110	Version 1.3		Entprellen optimiert
 // 20170221	Version 2.0		Umstellung auf Analog
-// 20170310 Version 2.1   	Optimierung der Min/Max Werte
-// 20180102 Version 2.2   	Codeoptimierung, MinSend alle 10 Minuten funktioniert immer noch nicht
-// 20180205 Version 2.3.1   Umstellung auf Lib 2.2.0, RepeaterFeature deaktiviert
+// 20170310 Version 2.1		Optimierung der Min/Max Werte
+// 20180102 Version 2.2		Codeoptimierung, MinSend alle 10 Minuten funktioniert immer noch nicht
+// 20180205 Version 2.3.1	Umstellung auf Lib 2.2.0, RepeaterFeature deaktiviert
 //							HEARTBEAT alle 5 Minuten
-// 20181112 Version 2.3.2   Umstellung auf Lib 2.3.0
+// 20181112 Version 2.3.2	Umstellung auf Lib 2.3.0
 //							bei receive() #defines für CHILD_ID und CHILD_ID_DEBUG verwendet (vorher 1 und 3 fest eingebaut)
-// 20181113 Version 2.4.0   Gas und Water Meter Sketche zusammengeführt. Mit #define WATER wird Wasserzähler aktiviert. Durch Auskommentieren der Gaszähler
+// 20181113 Version 2.4.0	Gas und Water Meter Sketche zusammengeführt. Mit #define WATER wird Wasserzähler aktiviert. Durch Auskommentieren der Gaszähler
 //							unsigned int sensorValue; (vorher nur int)
-// 							debuglevel bei EEPROM Wert von 255 (also bisher nicht beschrieben) auf 0 setzten und ins EEPROM schreiben
+//							debuglevel bei EEPROM Wert von 255 (also bisher nicht beschrieben) auf 0 setzten und ins EEPROM schreiben
 
 //ToDo: 	DEBUG_SERIAL(x) statt debugMessage
 
@@ -62,27 +62,27 @@
 	#define SKETCH_NAME					"Water Meter"		// Optional child sensor name
 	#define PULSE_FACTOR				1000				// Number of blinks per m3 of your meter (One rotation/liter)
 	#define MAX_FLOW					40					// Max flow (l/min) value to report. This filters outliers.
-	#define CHILD_NAME            		"Watermeter"		// Optional child sensor name
+	#define CHILD_NAME					"Watermeter"		// Optional child sensor name
 	volatile uint16_t minValue = 		40;
 	volatile uint16_t maxValue = 		250;
 	volatile uint16_t highThreshold = 	50;					// higher threshold for analog readings
-	volatile uint16_t lowThreshold = 	33;       			// lower threshold for analog readings
+	volatile uint16_t lowThreshold = 	33;					// lower threshold for analog readings
 #else
 	#define SKETCH_NAME					"Gas Meter"			// Optional child sensor name
 	#define PULSE_FACTOR				1000				// Number of blinks per m3 of your meter (One rotation/liter)
 	#define MAX_FLOW					40					// Max flow (l/min) value to report. This filters outliers.
-	#define CHILD_NAME            		"Gasmeter"			// Optional child sensor name
+	#define CHILD_NAME					"Gasmeter"			// Optional child sensor name
 	volatile uint16_t minValue = 		40;
 	volatile uint16_t maxValue = 		250;
-	volatile uint16_t highThreshold = 	50;					// higher threshold for analog readings
-	volatile uint16_t lowThreshold = 	33;       			// lower threshold for analog readings
+	volatile uint16_t highThreshold =	50;					// higher threshold for analog readings
+	volatile uint16_t lowThreshold =	33;					// lower threshold for analog readings
 #endif
 
 
 // Node and sketch information
 #define SKETCH_VER						"2.4.0"				// Sketch version
 #define CHILD_ID						1					// Id of the sensor child
-#define CHILD_ID_ANALOG					2 					//ID für Threshold Werte
+#define CHILD_ID_ANALOG					2					//ID für Threshold Werte
 #define CHILD_ID_DEBUG					3					// Debug setzen und lesen
 
 
@@ -114,11 +114,11 @@ MyMessage thValueMin (CHILD_ID_DEBUG, V_VAR2);
 MyMessage thValueMax (CHILD_ID_DEBUG, V_VAR3);
 
 // Global vars
-// unsigned long sendFrequency = 30000;			// Minimum time between send (in milliseconds). We don't want to spam the gateway.
+// unsigned long sendFrequency = 30000;							// Minimum time between send (in milliseconds). We don't want to spam the gateway.
 
 
-volatile uint16_t midValue = (lowThreshold+highThreshold)/2; // Mittelwert von Threshold Max und Min (Soll minValue und maxValue begrenzen)
-volatile uint16_t debugLevel = 0;			// sets the debug level, 0 = basic info. 1 = streaming level info. 2 = sent level streaming to gateway.
+volatile uint16_t midValue = (lowThreshold+highThreshold)/2;	// Mittelwert von Threshold Max und Min (Soll minValue und maxValue begrenzen)
+volatile uint16_t debugLevel = 0;								// sets the debug level, 0 = basic info. 1 = streaming level info. 2 = sent level streaming to gateway.
 volatile uint32_t pulseCount = 0;
 volatile uint32_t lastBlink = 0;
 volatile double flow = 0;
@@ -134,7 +134,7 @@ uint32_t lastHeartBeat = 0;
 uint32_t lastInternalsUpdate = 0;
 uint16_t sensorValue;
 
-double ppl = ((double)PULSE_FACTOR) / 1000;		// Pulses per liter
+double ppl = ((double)PULSE_FACTOR) / 1000;					// Pulses per liter
 double oldflow = 0;
 double volume = 0;
 double oldvolume = 0;
