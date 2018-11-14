@@ -131,7 +131,7 @@ uint32_t newBlink = 0;
 uint32_t lastSend = 0;
 uint32_t lastPulse = 0;
 uint32_t lastHeartBeat = 0;
-uint32_t lastInternalsUpdate = 0;
+uint32_t lastInternalsUpdate = INTERNALS_UPDATE_INTERVAL-15000; //15 Sec nach Start Werte aktualisieren
 uint16_t sensorValue;
 
 double ppl = ((double)PULSE_FACTOR) / 1000;					// Pulses per liter
