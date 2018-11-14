@@ -543,3 +543,75 @@ long EEPROMReadlong(long address)
 	return ((four << 0) & 0xFF) + ((three << 8) & 0xFFFF) + ((two << 16) & 0xFFFFFF) + ((one << 24) & 0xFFFFFFFF);
 }  
 */
+
+/*
+ 
+ __  __       ____
+|  \/  |_   _/ ___|  ___ _ __  ___  ___  _ __ ___
+| |\/| | | | \___ \ / _ \ `_ \/ __|/ _ \| `__/ __|
+| |  | | |_| |___| |  __/ | | \__ \  _  | |  \__ \
+|_|  |_|\__, |____/ \___|_| |_|___/\___/|_|  |___/
+        |___/                      2.3.0
+
+16 MCO:BGN:INIT REPEATER,CP=RNNRA---,VER=2.3.0
+26 TSM:INIT
+28 TSF:WUR:MS=5000
+36 TSM:INIT:TSP OK
+38 TSM:INIT:STATID=102
+40 TSF:SID:OK,ID=102
+43 TSM:FPAR
+79 TSF:MSG:SEND,102-102-255-255,s=255,c=3,t=7,pt=0,l=0,sg=0,ft=0,st=OK:
+2091 !TSM:FPAR:NO REPLY
+2093 TSM:FPAR
+2129 TSF:MSG:SEND,102-102-255-255,s=255,c=3,t=7,pt=0,l=0,sg=0,ft=0,st=OK:
+2928 TSF:MSG:READ,0-0-102,s=255,c=3,t=8,pt=1,l=1,sg=0:0
+2934 TSF:MSG:FPAR OK,ID=0,D=1
+4139 TSM:FPAR:OK
+4139 TSM:ID
+4141 TSM:ID:OK
+4143 TSM:UPL
+4147 TSF:MSG:SEND,102-102-0-0,s=255,c=3,t=24,pt=1,l=1,sg=0,ft=0,st=OK:1
+4155 TSF:MSG:READ,0-0-102,s=255,c=3,t=25,pt=1,l=1,sg=0:1
+4161 TSF:MSG:PONG RECV,HP=1
+4163 TSM:UPL:OK
+4165 TSM:READY:ID=102,PAR=0,DIS=1
+4171 TSF:MSG:SEND,102-102-0-0,s=255,c=3,t=15,pt=6,l=2,sg=0,ft=0,st=OK:0100
+4179 TSF:MSG:READ,0-0-102,s=255,c=3,t=15,pt=6,l=2,sg=0:0100
+4188 TSF:MSG:SEND,102-102-0-0,s=255,c=0,t=18,pt=0,l=5,sg=0,ft=0,st=OK:2.3.0
+4198 TSF:MSG:SEND,102-102-0-0,s=255,c=3,t=6,pt=1,l=1,sg=0,ft=0,st=OK:0
+4214 TSF:MSG:READ,0-0-102,s=255,c=3,t=6,pt=0,l=1,sg=0:M
+4222 TSF:MSG:SEND,102-102-0-0,s=255,c=3,t=11,pt=0,l=9,sg=0,ft=0,st=OK:Gas Meter
+4233 TSF:MSG:SEND,102-102-0-0,s=255,c=3,t=12,pt=0,l=5,sg=0,ft=0,st=OK:2.4.1
+4243 TSF:MSG:SEND,102-102-0-0,s=1,c=0,t=21,pt=0,l=8,sg=0,ft=0,st=OK:Gasmeter
+4253 TSF:MSG:SEND,102-102-0-0,s=2,c=0,t=23,pt=0,l=16,sg=0,ft=0,st=OK:Analog Get Child
+4265 TSF:MSG:SEND,102-102-0-0,s=3,c=0,t=23,pt=0,l=19,sg=0,ft=0,st=OK:Debug Set/Get Child
+4276 MCO:REG:REQ
+4280 TSF:MSG:SEND,102-102-0-0,s=255,c=3,t=26,pt=1,l=1,sg=0,ft=0,st=OK:2
+4288 TSF:MSG:READ,0-0-102,s=255,c=3,t=27,pt=1,l=1,sg=0:1
+4294 MCO:PIM:NODE REG=1
+4298 MCO:BGN:STP
+Setup: Start
+Debug level fetched from EEPROM, value: 0
+readEeprom: Pos 1Value 255
+readEeprom: Pos 3Value 255
+High threshold fetched from EEPROM, value: 255
+Low threshold fetched from EEPROM, value: 255
+midValue: 255
+Setup: End
+4315 MCO:BGN:INIT OK,TSP=1
+4325 TSF:MSG:SEND,102-102-0-0,s=3,c=1,t=24,pt=3,l=2,sg=0,ft=0,st=OK:0
+4335 TSF:MSG:SEND,102-102-0-0,s=3,c=1,t=25,pt=3,l=2,sg=0,ft=0,st=OK:255
+4345 TSF:MSG:SEND,102-102-0-0,s=3,c=1,t=26,pt=3,l=2,sg=0,ft=0,st=OK:255
+4354 TSF:MSG:SEND,102-102-0-0,s=2,c=1,t=24,pt=3,l=2,sg=0,ft=0,st=OK:0
+4364 TSF:MSG:SEND,102-102-0-0,s=2,c=1,t=25,pt=3,l=2,sg=0,ft=0,st=OK:41
+4374 TSF:MSG:SEND,102-102-0-0,s=2,c=1,t=26,pt=3,l=2,sg=0,ft=0,st=OK:250
+4382 TSF:MSG:SEND,102-102-0-0,s=1,c=1,t=34,pt=7,l=5,sg=0,ft=0,st=OK:0.00
+4392 TSF:MSG:SEND,102-102-0-0,s=1,c=1,t=24,pt=5,l=4,sg=0,ft=0,st=OK:0
+4403 TSF:MSG:SEND,102-102-0-0,s=1,c=1,t=35,pt=7,l=5,sg=0,ft=0,st=OK:0.000
+Sensor state: 1
+Request: Start
+34418 TSF:MSG:SEND,102-102-0-0,s=1,c=2,t=24,pt=0,l=0,sg=0,ft=0,st=OK:
+34428 TSF:MSG:READ,0-0-102,s=1,c=1,t=24,pt=0,l=1,sg=0:0
+Receiver: 1
+Received last pulse count from gw: 0
+*/
