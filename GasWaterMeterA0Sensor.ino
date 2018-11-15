@@ -19,8 +19,8 @@
  *******************************/
  
 /*
-Sensors: 	Gas 	Arduino Raspberry kompatible Linear Hall Magnetic Sensor Module KY-024 	(1,35 EUR)
-		Water	Obstacle Avoidance TCRT5000 Infrared Track Sensor Module For Arduino	(1,00 EUR)
+Sensors:	Gas		Arduino Raspberry kompatible Linear Hall Magnetic Sensor Module KY-024 	(1,35 EUR)
+			Water	Obstacle Avoidance TCRT5000 Infrared Track Sensor Module For Arduino	(1,00 EUR)
 
 */
  
