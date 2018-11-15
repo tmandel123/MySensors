@@ -49,6 +49,7 @@ Sensors:	Gas		Arduino Raspberry kompatible Linear Hall Magnetic Sensor Module KY
 // regelmäßig AnalogValue und Debugvalue senden (alle 60 Minuten)
 // testen, ob der Sketch weiterzählt, auch wenn kein Gateway verfügbar ist
 
+/* test 1234 */
 
 #define SKETCH_VER						"2.4.1"				// Sketch version
 
