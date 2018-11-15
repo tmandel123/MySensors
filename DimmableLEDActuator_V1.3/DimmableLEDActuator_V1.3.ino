@@ -20,6 +20,8 @@
 #define MY_NODE_ID 210
 // #define MY_PARENT_NODE_ID 50
 // #define MY_PARENT_NODE_IS_STATIC
+#define MY_RF24_CHANNEL 1									// Nach Testphase deaktivieren, damit Kanal 76 aktiv wird
+
 
 #define MY_RF24_PA_LEVEL RF24_PA_LOW
 #define MY_TRANSPORT_WAIT_READY_MS (5000ul)
@@ -37,7 +39,7 @@
 
 #define CHILD_ID_LED       			0     				//ID für Child, welches den MOSFET per PWM ansteuert
 #define CHILD_ID_LED_TEXT			"LED Dimming Test Node"
-#define CHILD_ID_LED_EEPROM			0
+#define LED_CHILD_0_EEPROM			0
 
 #define HEARTBEAT_INTERVAL	30000        //später alle 5 Minuten, zum Test alle 30 Sekunden
 unsigned long lastHeartBeat = HEARTBEAT_INTERVAL - 5000; //das erste Mal sollte nach 5 Sekunden etwas passieren
@@ -61,7 +63,7 @@ void before()
 	pinMode(LED_PIN, OUTPUT);   // sets the pin as output
 	DEBUG_PRINTLN("before: ");
 	// showEEprom();
-	int16_t EEPROMLevel = loadState(CHILD_ID_LED_EEPROM);
+	int16_t EEPROMLevel = loadState(LED_CHILD_0_EEPROM);
 	DEBUG_PRINT("EEPROMLevel: ");
 	DEBUG_PRINTLN(EEPROMLevel);
 	fadeToLevel( EEPROMLevel );
@@ -121,9 +123,9 @@ void receive(const MyMessage &message)
 
 		fadeToLevel( requestedLevel );
 		
-		saveState(CHILD_ID_LED_EEPROM,	requestedLevel);
-		DEBUG_PRINT("CHILD_ID_LED_EEPROM New Value");
-		DEBUG_PRINTLN(loadState(CHILD_ID_LED_EEPROM));
+		saveState(LED_CHILD_0_EEPROM,	requestedLevel);
+		DEBUG_PRINT("LED_CHILD_0_EEPROM New Value");
+		DEBUG_PRINTLN(loadState(LED_CHILD_0_EEPROM));
 		// Inform the gateway of the current DimmableLED's SwitchPower1 and LoadLevelStatus value...
 		send(lightMsg.set(currentLevel > 0));
 

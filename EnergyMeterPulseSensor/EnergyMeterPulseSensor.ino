@@ -48,6 +48,8 @@
 #define MY_PARENT_NODE_ID 50
 #define MY_REPEATER_FEATURE
 
+#define MY_TRANSPORT_WAIT_READY_MS (5000ul)
+
 #include <MySensors.h>
 
 #define SKETCH_NAME					"EnergyMeter"		// Optional child sensor name

@@ -5,7 +5,7 @@
 #define MY_NODE_ID 210
 #define MY_PARENT_NODE_ID 50
 
-
+#define MY_RF24_CHANNEL 1									// Nach Testphase deaktivieren, damit Kanal 76 aktiv wird
 
 #define NODE_TXT "Ack Test Node"
 #define MY_INDICATION_HANDLER

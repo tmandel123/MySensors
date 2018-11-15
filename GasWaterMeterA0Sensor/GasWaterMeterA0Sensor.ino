@@ -59,6 +59,7 @@ Sensors:	Gas		Arduino Raspberry kompatible Linear Hall Magnetic Sensor Module KY
 #define MY_NODE_ID 102
 #define MY_RF24_CHANNEL 1									// Nach Testphase deaktivieren, damit Kanal 76 aktiv wird
 
+#define MY_TRANSPORT_WAIT_READY_MS (5000ul)
 
 #include <SPI.h>
 #include <MySensors.h>  
