@@ -36,6 +36,7 @@ Sensors:	Gas		Arduino Raspberry kompatible Linear Hall Magnetic Sensor Module KY
 // 20181113 Version 2.4.0	Gas und Water Meter Sketche zusammengeführt. Mit #define WATER wird Wasserzähler aktiviert. Durch Auskommentieren der Gaszähler
 //							unsigned int sensorValue; (vorher nur int)
 //							debuglevel bei EEPROM Wert von 255 (also bisher nicht beschrieben) auf 0 setzten und ins EEPROM schreiben
+// 20181116 Version 2.4.1	neben sendHeartbeat wird der Wert von millis() zum DebugChild als V_VAR4 gesendet (damit sollen sporadische Reboots erkannt werden)
 
 //ToDo: 	DEBUG_SERIAL(x) statt debugMessage
 
@@ -51,7 +52,7 @@ Sensors:	Gas		Arduino Raspberry kompatible Linear Hall Magnetic Sensor Module KY
 
 /* test 1234 */
 
-#define SKETCH_VER						"2.4.1"				// Sketch version
+#define SKETCH_VER						"2.4.1-001"				// Sketch version
 
 #define MY_RADIO_NRF24
 #define MY_DEBUG //muss vor MySensors.h stehen
@@ -118,9 +119,10 @@ MyMessage analogValue(CHILD_ID_ANALOG, V_VAR1);
 MyMessage MsgMinValue(CHILD_ID_ANALOG, V_VAR2);
 MyMessage MsgMaxValue(CHILD_ID_ANALOG, V_VAR3);
 
-MyMessage debugValue (CHILD_ID_DEBUG, V_VAR1);
-MyMessage thValueMin (CHILD_ID_DEBUG, V_VAR2);
-MyMessage thValueMax (CHILD_ID_DEBUG, V_VAR3);
+MyMessage debugValue	(CHILD_ID_DEBUG, V_VAR1);
+MyMessage thValueMin	(CHILD_ID_DEBUG, V_VAR2);
+MyMessage thValueMax	(CHILD_ID_DEBUG, V_VAR3);
+MyMessage hwTime		(CHILD_ID_DEBUG, V_VAR4);
 
 // Global vars
 // unsigned long sendFrequency = 30000;							// Minimum time between send (in milliseconds). We don't want to spam the gateway.
@@ -204,7 +206,8 @@ void loop()
 	uint32_t currentTime = millis();
 	if (currentTime - lastHeartBeat > (uint32_t)HEARTBEAT_INTERVAL)
 	{
-		sendHeartbeat();	
+		sendHeartbeat();
+		send(hwTime.set(currentTime));
 		lastHeartBeat = currentTime;
 		if (informGW)
 		{
