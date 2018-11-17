@@ -337,12 +337,9 @@ void loop()
 			oldPulseCount = pulseCount;
 			debugMessage("pulsecount: ", String(pulseCount));
 			send(lastCounterMsg.set(pulseCount));
-<<<<<<< HEAD
 			// double volume = ((double)pulseCount / ((double)PULSE_FACTOR));
 			volume = ((double)pulseCount / ((double)PULSE_FACTOR));
-=======
-			double volume = ((double)pulseCount / ((double)PULSE_FACTOR));
->>>>>>> 62a22fa8f855e1b5d207f24a2c419d62c64b3d5e
+
 			if (volume != oldvolume)
 			{
 				oldvolume = volume;
