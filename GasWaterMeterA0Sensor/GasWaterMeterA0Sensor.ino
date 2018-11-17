@@ -19,7 +19,11 @@
  *******************************/
  
 /*
-Sensors:	Gas		Arduino Raspberry kompatible Linear Hall Magnetic Sensor Module KY-024 	(1,35 EUR)
+Sensoren:	Gas		Arduino Raspberry kompatible Linear Hall Magnetic Sensor Module KY-024 	(1,35 EUR)
+					Angeschlossen an 3,3V 
+					kein Magnet in der Nähe: 			AnalogValue=512
+					starker Magnet ganz dicht dran:		AnalogValue=267
+					
 			Water	Obstacle Avoidance TCRT5000 Infrared Track Sensor Module For Arduino	(1,00 EUR)
 
 */
@@ -46,16 +50,25 @@ Sensors:	Gas		Arduino Raspberry kompatible Linear Hall Magnetic Sensor Module KY
 // diesen PulseCound nicht im Setup abfragen, sondern einfach weiterzählen. ggf aber diesen Pulscound von FHEM aus setzten lassen
 // alle 10 Minuten ein IsAlive schicken(z.B. aktuellen PulseCount)
 // Statt delay besser Mysensors wait Kommando benutzen
-// int high = readEeprom(0);//16 Bit --> besser unsigned int. Die Funktion int readEeprom(int pos)  müsste dann auch auf unsigned int geändert werden
+// int high = readEeprom16(0);//16 Bit --> besser unsigned int. Die Funktion int readEeprom16(int pos)  müsste dann auch auf unsigned int geändert werden
 // regelmäßig AnalogValue und Debugvalue senden (alle 60 Minuten)
 // testen, ob der Sketch weiterzählt, auch wenn kein Gateway verfügbar ist
 
-/* test 1234 */
+/* Config from FHEM
 
-#define SKETCH_VER						"2.4.1-001"				// Sketch version
+set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
+
+
+*/
+
+#define SKETCH_VER						"2.4.1-002"				// Sketch version
 
 #define MY_RADIO_NRF24
-#define MY_DEBUG //muss vor MySensors.h stehen
+
+// #define MY_DEBUG //muss vor MySensors.h stehen
+#define SER_DEBUG
+
+
 #define MY_REPEATER_FEATURE
 #define MY_NODE_ID 102
 #define MY_RF24_CHANNEL 1									// Nach Testphase deaktivieren, damit Kanal 76 aktiv wird
@@ -73,19 +86,20 @@ Sensors:	Gas		Arduino Raspberry kompatible Linear Hall Magnetic Sensor Module KY
 	#define PULSE_FACTOR				1000				// Number of blinks per m3 of your meter (One rotation/liter)
 	#define MAX_FLOW					40					// Max flow (l/min) value to report. This filters outliers.
 	#define CHILD_NAME					"Watermeter"		// Optional child sensor name
-	volatile uint16_t minValue = 		40;
-	volatile uint16_t maxValue = 		250;
 	volatile uint16_t highThreshold = 	50;					// higher threshold for analog readings
 	volatile uint16_t lowThreshold = 	33;					// lower threshold for analog readings
+	volatile uint16_t minValue = 		lowThreshold-10;
+	volatile uint16_t maxValue = 		highThreshold+50;
+
 #else
 	#define SKETCH_NAME					"Gas Meter"			// Optional child sensor name
-	#define PULSE_FACTOR				1000				// Number of blinks per m3 of your meter (One rotation/liter)
+	#define PULSE_FACTOR				100					// Number of blinks per m3 of your meter (One rotation/liter)
 	#define MAX_FLOW					40					// Max flow (l/min) value to report. This filters outliers.
 	#define CHILD_NAME					"Gasmeter"			// Optional child sensor name
-	volatile uint16_t minValue = 		267;
-	volatile uint16_t maxValue = 		513;
-	volatile uint16_t highThreshold =	430;					// higher threshold for analog readings
-	volatile uint16_t lowThreshold =	350;					// lower threshold for analog readings
+	volatile uint16_t highThreshold =	490;				// higher threshold for analog readings
+	volatile uint16_t lowThreshold =	440;				// lower threshold for analog readings
+	volatile uint16_t minValue = 		lowThreshold-50;
+	volatile uint16_t maxValue = 		highThreshold+50;
 #endif
 
 
@@ -108,34 +122,45 @@ Sensors:	Gas		Arduino Raspberry kompatible Linear Hall Magnetic Sensor Module KY
 
 #define EEPROM_HI_THRESHOLD				0 					//16 Bit
 #define EEPROM_LO_THRESHOLD				2					//16 Bit
-#define EEPROM_DEBUGLEVEL				4					//8Bit
+#define EEPROM_DEBUGLEVEL				4					//8  Bit
+#define EEPROM_METER_VALUE				5					//32 Bit
+
+
+
+#ifdef SER_DEBUG
+#define DEBUG_SERIAL(x) Serial.begin(x)
+#define DEBUG_PRINT(x) Serial.print(x)
+#define DEBUG_PRINTLN(x) Serial.println(x)
+#else
+#define DEBUG_SERIAL(x)
+#define DEBUG_PRINT(x) 
+#define DEBUG_PRINTLN(x) 
+#endif
 
 
 MyMessage flowMsg(CHILD_ID, V_FLOW);
 MyMessage volumeMsg(CHILD_ID, V_VOLUME);
 MyMessage lastCounterMsg(CHILD_ID, V_VAR1); 				//dieser Wert wird vom Controller abgefragt und stellt den Zählerstand dar
 
-MyMessage analogValue(CHILD_ID_ANALOG, V_VAR1);
-MyMessage MsgMinValue(CHILD_ID_ANALOG, V_VAR2);
-MyMessage MsgMaxValue(CHILD_ID_ANALOG, V_VAR3);
+MyMessage analogValue	(CHILD_ID_ANALOG, V_VAR1);
+MyMessage MsgMinValue	(CHILD_ID_ANALOG, V_VAR2);
+MyMessage MsgMaxValue	(CHILD_ID_ANALOG, V_VAR3);
+MyMessage MeterValue	(CHILD_ID_ANALOG, V_VAR5);
 
 MyMessage debugValue	(CHILD_ID_DEBUG, V_VAR1);
 MyMessage thValueMin	(CHILD_ID_DEBUG, V_VAR2);
 MyMessage thValueMax	(CHILD_ID_DEBUG, V_VAR3);
 MyMessage hwTime		(CHILD_ID_DEBUG, V_VAR4);
 
-// Global vars
-// unsigned long sendFrequency = 30000;							// Minimum time between send (in milliseconds). We don't want to spam the gateway.
 
-
-volatile uint16_t midValue = (lowThreshold+highThreshold)/2;	// Mittelwert von Threshold Max und Min (Soll minValue und maxValue begrenzen)
-volatile uint16_t debugLevel = 0;								// sets the debug level, 0 = basic info. 1 = streaming level info. 2 = sent level streaming to gateway.
 volatile uint32_t pulseCount = 0;
 volatile uint32_t lastBlink = 0;
 volatile double flow = 0;
-boolean pcReceived = false;
-boolean informGW = false;
-boolean sensorState;
+volatile boolean informGW = false;
+volatile boolean sensorState;
+
+uint16_t midValue = (lowThreshold+highThreshold)/2;	// Mittelwert von Threshold Max und Min (Soll minValue und maxValue begrenzen)
+uint16_t debugLevel = 0;								// sets the debug level, 0 = basic info. 1 = streaming level info. 2 = sent level streaming to gateway.
 
 uint32_t oldPulseCount = 0;
 uint32_t newBlink = 0;
@@ -151,12 +176,37 @@ double volume = 0;
 double oldvolume = 0;
 
 
+void preHwInit() 
+{
+#ifdef SER_DEBUG
+	Serial.begin(115200);
+#endif
+
+	DEBUG_PRINTLN("preHwInit: ");
+	// showEEprom();
+}
+
+void before() 
+{
+
+	DEBUG_PRINTLN("before: ");
+	// DEBUG_PRINTLN("writeEeprom32: ");
+	// writeEeprom32(EEPROM_METER_VALUE, 338849);
+	// showEEprom();
+	// DEBUG_PRINT("readEeprom32: ");
+	// uint32_t MeterValue = readEeprom32(EEPROM_METER_VALUE);
+	// DEBUG_PRINTLN(MeterValue);
+}
+
 
 void setup()
 {
 
-	debugMessage("Setup: ","Start");
-	pulseCount = oldPulseCount = 0;
+	DEBUG_PRINTLN("setup: ");
+	uint32_t MeterValue = readEeprom32(EEPROM_METER_VALUE);
+	DEBUG_PRINT("readEeprom32: EEPROM_METER_VALUE ");
+	DEBUG_PRINTLN(MeterValue);
+	pulseCount = oldPulseCount = MeterValue;
 
 	lastHeartBeat = lastSend = lastPulse = millis();
 
@@ -172,8 +222,8 @@ void setup()
 	}
 
 	// Fetch the last set thresholds from EEPROM
-	uint16_t high = readEeprom(EEPROM_HI_THRESHOLD);//16 Bit , weil 1024 nicht in 8 Bit reinpasst
-	uint16_t low = readEeprom(EEPROM_LO_THRESHOLD); //16 Bit
+	uint16_t high = readEeprom16(EEPROM_HI_THRESHOLD);//16 Bit , weil 1024 nicht in 8 Bit reinpasst
+	uint16_t low = readEeprom16(EEPROM_LO_THRESHOLD); //16 Bit
 	if (high == 0 || high == 65535 || low == 0 || low == 65535) 
 	{
 		
@@ -194,11 +244,11 @@ void setup()
 
 
 void presentation()  {
-  // Send the sketch version information to the gateway and Controller
-  sendSketchInfo(SKETCH_NAME, SKETCH_VER);     
-  present(CHILD_ID, S_WATER, CHILD_NAME);       
-  present(CHILD_ID_ANALOG, S_CUSTOM, "Analog Get Child");
-  present(CHILD_ID_DEBUG, S_CUSTOM, "Debug Set/Get Child");
+	// Send the sketch version information to the gateway and Controller
+	sendSketchInfo(SKETCH_NAME, SKETCH_VER);     
+	present(CHILD_ID, S_WATER, CHILD_NAME);       
+	present(CHILD_ID_ANALOG, S_CUSTOM, "Analog Get Child");
+	present(CHILD_ID_DEBUG, S_CUSTOM, "Debug Set/Get Child");
 }
 
 void loop()
@@ -213,6 +263,8 @@ void loop()
 		{
 			informGW = false;
 			send(lastCounterMsg.set(pulseCount));
+			send(thValueMin.set(lowThreshold));
+			send(thValueMax.set(highThreshold));
 		}
 	}
 	//Serviceroutine, welche alle 60 Minuten läuft um Werte für FHEM Grafik aktuell zu halten
@@ -227,6 +279,7 @@ void loop()
 		{
 		  maxValue--;
 		}
+		writeEeprom32(EEPROM_METER_VALUE, pulseCount);
 		
 		send(debugValue.set(debugLevel));
 		send(thValueMin.set(lowThreshold));
@@ -237,9 +290,8 @@ void loop()
 		send(flowMsg.set(flow, 2));
 		send(lastCounterMsg.set(pulseCount));
 		send(volumeMsg.set(volume, 3));
+		send(MeterValue.set(pulseCount));
 		
-
-
 		lastInternalsUpdate = currentTime;
 	}
 	// Check the analog sensor values an change state when thresholds are passed
@@ -250,25 +302,15 @@ void loop()
 	{
 		lastSend = currentTime;
 
-		if (!pcReceived) {
-			//Last Pulsecount not yet received from controller, request it again
-			debugMessage("Request: ","Start");
-			request(CHILD_ID, V_VAR1);
-			return;
-		}
-    
 		if (flow != oldflow) {
 			oldflow = flow;
 			debugMessage("l/min:", String(flow));
 
-			// Check that we dont get unresonable large flow value. 
-			// could hapen when long wraps or false interrupt triggered
 			if (flow < ((uint32_t)MAX_FLOW)) {
 				// Send flow value to gw
 				send(flowMsg.set(flow, 2));
 				send(MsgMinValue.set(minValue));
 				send(MsgMaxValue.set(maxValue));
-
 				//Min und Max etwas Näher an den Durchschnitt heranziehen
 				if (minValue < (midValue - 4 ))
 				{
@@ -293,20 +335,15 @@ void loop()
 		if (pulseCount != oldPulseCount) 
 		{
 			oldPulseCount = pulseCount;
-			// if (debugLevel < 2) {
-				debugMessage("pulsecount: ", String(pulseCount));
-				// Send  pulsecount value to gw in VAR1
-				send(lastCounterMsg.set(pulseCount));
-			// }
-			double volume = ((double)pulseCount / ((double)PULSE_FACTOR));
+			debugMessage("pulsecount: ", String(pulseCount));
+			send(lastCounterMsg.set(pulseCount));
+			// double volume = ((double)pulseCount / ((double)PULSE_FACTOR));
+			volume = ((double)pulseCount / ((double)PULSE_FACTOR));
 			if (volume != oldvolume)
 			{
 				oldvolume = volume;
-				// if (debugLevel == 2) {
-					debugMessage("volume: ", String(volume, 3));
-					// Send volume value to gw
-					send(volumeMsg.set(volume, 3));
-				// }
+				debugMessage("volume: ", String(volume, 3));
+				send(volumeMsg.set(volume, 3));
 			}
 		}
 	}
@@ -324,19 +361,20 @@ void debugMessage(String header, String content)
 void receive(const MyMessage &message)
 {
 	debugMessage("Receiver: ", String(message.sensor));
-	if (message.sensor == CHILD_ID)
+	if (message.sensor == CHILD_ID_ANALOG)
 	{
 		switch (message.type) 
 		{
-			case V_VAR1: 
+			case V_VAR5: 
 			{
 				// unsigned long gwPulseCount = message.getULong();
 				// pulseCount = gwPulseCount;
 				pulseCount = message.getULong();
 				flow = oldflow = 0;
 				debugMessage("Received last pulse count from gw: ", String(pulseCount));
-				pcReceived = true;
+				// pcReceived = true;
 				informGW = true;
+				writeEeprom32(EEPROM_METER_VALUE, pulseCount);
 			}
 		}
 	}
@@ -354,15 +392,17 @@ void receive(const MyMessage &message)
 			case V_VAR2: 
 			{
 				lowThreshold = message.getULong();
-				storeEeprom(EEPROM_LO_THRESHOLD, lowThreshold); //16 Bit
+				writeEeprom16(EEPROM_LO_THRESHOLD, lowThreshold); //16 Bit
 				debugMessage("Received new low threshold from gw: ", String(lowThreshold));
+				informGW = true;
 			}
 			break;
 			case V_VAR3: 
 			{
 				highThreshold = message.getULong();
-				storeEeprom(EEPROM_HI_THRESHOLD, highThreshold); // 16 Bit
+				writeEeprom16(EEPROM_HI_THRESHOLD, highThreshold); // 16 Bit
 				debugMessage("Received new high threshold from gw: ", String(highThreshold));
+				informGW = true;
 			}
 			break;
 		}
@@ -490,7 +530,7 @@ int getAverage()
 
 
 
-void storeEeprom(uint8_t pos, uint16_t value) 
+void writeEeprom16(uint8_t pos, uint16_t value) 
 {
   // function for saving the values to the internal EEPROM
   // value = the value to be stored (as int)
@@ -499,13 +539,13 @@ void storeEeprom(uint8_t pos, uint16_t value)
   saveState(pos, ((uint16_t)value >> 8));
   pos++;
   saveState(pos, (value & 0xff));
-  Serial.print("storeEeprom: Pos ");
+  Serial.print("writeEeprom16: Pos ");
   Serial.print(pos);
   Serial.print("Value ");
   Serial.println(value);
 }
 
-uint16_t readEeprom(uint8_t pos) 
+uint16_t readEeprom16(uint8_t pos) 
 {
   // function for reading the values from the internal EEPROM
   // pos = the first byte position to read the value from 
@@ -517,7 +557,7 @@ uint16_t readEeprom(uint8_t pos)
   pos++;
   loByte = loadState(pos);
   
-  Serial.print("readEeprom: Pos ");
+  Serial.print("readEeprom16: Pos ");
   Serial.print(pos);
   Serial.print(" Value ");
   Serial.println(hiByte | loByte);
@@ -525,12 +565,12 @@ uint16_t readEeprom(uint8_t pos)
   return (hiByte | loByte);
 }
 
-/* Dies muss noch auf die MySensors Variante (loadState, saveState) umgeschrieben werden, damit im EEPROM nicht die Werte für NodeID und Co überschrieben werden
-//This function will write a 4 byte (32bit) long to the eeprom at
-//the specified address to address + 3.
-void EEPROMWritelong(int address, long value)
+
+//This function will write a 4 byte (32bit) uint32_t to the eeprom at
+//the specified pos to pos + 3.
+void writeEeprom32(int pos, uint32_t value)
 {
-	//Decomposition from a long to 4 bytes by using bitshift.
+	//Decomposition from a uint32_t to 4 bytes by using bitshift.
 	//One = Most significant -> Four = Least significant byte
 	byte four = (value & 0xFF);
 	byte three = ((value >> 8) & 0xFF);
@@ -538,24 +578,49 @@ void EEPROMWritelong(int address, long value)
 	byte one = ((value >> 24) & 0xFF);
 
 	//Write the 4 bytes into the eeprom memory.
-	EEPROM.write(address, four);
-	EEPROM.write(address + 1, three);
-	EEPROM.write(address + 2, two);
-	EEPROM.write(address + 3, one);
+	saveState(pos, four);
+	saveState(pos + 1, three);
+	saveState(pos + 2, two);
+	saveState(pos + 3, one);
 }
 
-long EEPROMReadlong(long address)
+uint32_t readEeprom32(int pos)
 {
 	//Read the 4 bytes from the eeprom memory.
-	long four = EEPROM.read(address);
-	long three = EEPROM.read(address + 1);
-	long two = EEPROM.read(address + 2);
-	long one = EEPROM.read(address + 3);
+	uint32_t four = loadState(pos);
+	uint32_t three = loadState(pos + 1);
+	uint32_t two = loadState(pos + 2);
+	uint32_t one = loadState(pos + 3);
 
-	//Return the recomposed long by using bitshift.
+	//Return the recomposed uint32_t by using bitshift.
 	return ((four << 0) & 0xFF) + ((three << 8) & 0xFFFF) + ((two << 16) & 0xFFFFFF) + ((one << 24) & 0xFFFFFFFF);
 }  
-*/
+
+void showEEprom()
+{
+	DEBUG_PRINTLN("showEEprom()");
+	byte counter=0;
+	byte Zeichen;
+	for (byte i = 0; i<16; i++)
+	{
+		for (byte j = 0; j<16; j++)
+		{
+			Zeichen=loadState(counter);
+			if (Zeichen < 16)
+			{
+				Serial.print("0");
+				
+			}
+			Serial.print(String(Zeichen,HEX));
+			if (j < 15)
+			{
+				Serial.print("-");
+			}
+			counter++;
+		}	
+		Serial.println("");
+	}
+}
 
 /*
  
@@ -605,8 +670,8 @@ long EEPROMReadlong(long address)
 4298 MCO:BGN:STP
 Setup: Start
 Debug level fetched from EEPROM, value: 0
-readEeprom: Pos 1Value 255
-readEeprom: Pos 3Value 255
+readEeprom16: Pos 1Value 255
+readEeprom16: Pos 3Value 255
 High threshold fetched from EEPROM, value: 255
 Low threshold fetched from EEPROM, value: 255
 midValue: 255
