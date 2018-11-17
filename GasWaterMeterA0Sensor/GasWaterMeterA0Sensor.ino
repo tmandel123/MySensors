@@ -61,7 +61,7 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 
 */
 
-#define SKETCH_VER						"2.4.1-002"				// Sketch version
+#define SKETCH_VER						"2.4.1-003"				// Sketch version
 
 #define MY_RADIO_NRF24
 
@@ -86,20 +86,19 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 	#define PULSE_FACTOR				1000				// Number of blinks per m3 of your meter (One rotation/liter)
 	#define MAX_FLOW					40					// Max flow (l/min) value to report. This filters outliers.
 	#define CHILD_NAME					"Watermeter"		// Optional child sensor name
-	volatile uint16_t highThreshold = 	50;					// higher threshold for analog readings
-	volatile uint16_t lowThreshold = 	33;					// lower threshold for analog readings
-	volatile uint16_t minValue = 		lowThreshold-10;
-	volatile uint16_t maxValue = 		highThreshold+50;
-
+	uint16_t highThreshold = 			50;					// higher threshold for analog readings
+	uint16_t lowThreshold = 			33;					// lower threshold for analog readings
+	uint16_t maxValue = 				90;
+	uint16_t minValue = 				23;
 #else
 	#define SKETCH_NAME					"Gas Meter"			// Optional child sensor name
 	#define PULSE_FACTOR				100					// Number of blinks per m3 of your meter (One rotation/liter)
 	#define MAX_FLOW					40					// Max flow (l/min) value to report. This filters outliers.
 	#define CHILD_NAME					"Gasmeter"			// Optional child sensor name
-	volatile uint16_t highThreshold =	490;				// higher threshold for analog readings
-	volatile uint16_t lowThreshold =	440;				// lower threshold for analog readings
-	volatile uint16_t minValue = 		lowThreshold-50;
-	volatile uint16_t maxValue = 		highThreshold+50;
+	uint16_t highThreshold =			500;				// higher threshold for analog readings
+	uint16_t lowThreshold =				494;				// lower threshold for analog readings
+	uint16_t maxValue = 				516;
+	uint16_t minValue = 				486;
 #endif
 
 
@@ -155,11 +154,11 @@ MyMessage hwTime		(CHILD_ID_DEBUG, V_VAR4);
 
 volatile uint32_t pulseCount = 0;
 volatile uint32_t lastBlink = 0;
-volatile double flow = 0;
+volatile float flow = 0;
 volatile boolean informGW = false;
 volatile boolean sensorState;
 
-uint16_t midValue = (lowThreshold+highThreshold)/2;	// Mittelwert von Threshold Max und Min (Soll minValue und maxValue begrenzen)
+uint16_t midValue = 0;
 uint16_t debugLevel = 0;								// sets the debug level, 0 = basic info. 1 = streaming level info. 2 = sent level streaming to gateway.
 
 uint32_t oldPulseCount = 0;
@@ -170,10 +169,10 @@ uint32_t lastHeartBeat = 0;
 uint32_t lastInternalsUpdate = INTERNALS_UPDATE_INTERVAL-15000; //15 Sec nach Start Werte aktualisieren
 uint16_t sensorValue;
 
-double ppl = ((double)PULSE_FACTOR) / 1000;					// Pulses per liter
-double oldflow = 0;
-double volume = 0;
-double oldvolume = 0;
+float ppl = ((float)PULSE_FACTOR) / 1000;					// Pulses per liter
+float oldflow = 0;
+float volume = 0;
+float oldvolume = 0;
 
 
 void preHwInit() 
@@ -237,7 +236,7 @@ void setup()
 		debugMessage("High threshold fetched from EEPROM, value: ", String(highThreshold));
 		debugMessage("Low threshold fetched from EEPROM, value: ", String(lowThreshold));
 	}
-	midValue=uint16_t((lowThreshold+highThreshold)/2);
+	midValue=uint16_t((lowThreshold+highThreshold)/2);	// Mittelwert von Threshold Max und Min (Soll minValue und maxValue begrenzen)
 	debugMessage("midValue: ", String(midValue));
 	debugMessage("Setup: ","End");
 }
@@ -337,8 +336,8 @@ void loop()
 			oldPulseCount = pulseCount;
 			debugMessage("pulsecount: ", String(pulseCount));
 			send(lastCounterMsg.set(pulseCount));
-			// double volume = ((double)pulseCount / ((double)PULSE_FACTOR));
-			volume = ((double)pulseCount / ((double)PULSE_FACTOR));
+			// float volume = ((float)pulseCount / ((float)PULSE_FACTOR));
+			volume = (float)pulseCount / ((float)PULSE_FACTOR);
 
 			if (volume != oldvolume)
 			{
