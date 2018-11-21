@@ -43,7 +43,7 @@
 
 // Enable and select radio type attached
 #define MY_RADIO_NRF24
-// #define MY_RF24_CHANNEL 1
+#define MY_RF24_CHANNEL 96
 #define MY_NODE_ID 100
 #define MY_PARENT_NODE_ID 50
 #define MY_REPEATER_FEATURE

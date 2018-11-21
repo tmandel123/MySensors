@@ -61,7 +61,7 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 
 */
 
-#define SKETCH_VER						"2.4.1-003"				// Sketch version
+#define SKETCH_VER						"2.4.1-004"				// Sketch version
 
 #define MY_RADIO_NRF24
 
@@ -70,27 +70,25 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 
 
 #define MY_REPEATER_FEATURE
-#define MY_NODE_ID 102
-#define MY_RF24_CHANNEL 1									// Nach Testphase deaktivieren, damit Kanal 76 aktiv wird
-
+#define MY_RF24_CHANNEL 96									// Für Testphase deaktivieren, damit Kanal 76 aktiv wird (Prod=96 Test=76)
 #define MY_TRANSPORT_WAIT_READY_MS (5000ul)
 
-#include <SPI.h>
-#include <MySensors.h>  
 
-// #define WATER
-#define GAS
+#define WATER
+// #define GAS
 
 #ifdef WATER
+	#define MY_NODE_ID 101									// Water Node ID
 	#define SKETCH_NAME					"Water Meter"		// Optional child sensor name
 	#define PULSE_FACTOR				1000				// Number of blinks per m3 of your meter (One rotation/liter)
 	#define MAX_FLOW					40					// Max flow (l/min) value to report. This filters outliers.
 	#define CHILD_NAME					"Watermeter"		// Optional child sensor name
-	uint16_t highThreshold = 			50;					// higher threshold for analog readings
-	uint16_t lowThreshold = 			33;					// lower threshold for analog readings
-	uint16_t maxValue = 				90;
-	uint16_t minValue = 				23;
+	uint16_t highThreshold = 			150;					// higher threshold for analog readings
+	uint16_t lowThreshold = 			80;					// lower threshold for analog readings
+	uint16_t maxValue = 				210;
+	uint16_t minValue = 				40;
 #else
+	#define MY_NODE_ID 102									// Gas Node ID
 	#define SKETCH_NAME					"Gas Meter"			// Optional child sensor name
 	#define PULSE_FACTOR				100					// Number of blinks per m3 of your meter (One rotation/liter)
 	#define MAX_FLOW					40					// Max flow (l/min) value to report. This filters outliers.
@@ -100,6 +98,9 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 	uint16_t maxValue = 				516;
 	uint16_t minValue = 				486;
 #endif
+
+#include <SPI.h>
+#include <MySensors.h>  
 
 
 // Node and sketch information
