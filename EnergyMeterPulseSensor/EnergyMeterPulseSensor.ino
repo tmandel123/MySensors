@@ -27,7 +27,7 @@
 
 
 // Enable debug prints
-#define MY_DEBUG
+// #define MY_DEBUG
 
 // #define SER_DEBUG
 #ifdef SER_DEBUG
