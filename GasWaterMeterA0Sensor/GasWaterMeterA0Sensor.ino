@@ -44,14 +44,11 @@ Sensoren:	Gas		Arduino Raspberry kompatible Linear Hall Magnetic Sensor Module K
 
 //ToDo: 	DEBUG_SERIAL(x) statt debugMessage
 
-//ToDo
-// von boolean nach bool ändern
-// alle 60 Minuten den leztten PulseCount im EEPROM speichern, dazu einen eigenen ChildNode verwenden (oder V_VAR5) 
-// diesen PulseCound nicht im Setup abfragen, sondern einfach weiterzählen. ggf aber diesen Pulscound von FHEM aus setzten lassen
+// ToDo		Testmodus: Wenn dieser aktiviert ist, wird die Funktion Pulsecound alle 10 Sekunden weitergezählt und der eigentliche Zählerwert um eins Erhöht.	
+//			Dafür neuen Debugmodus (z.B. debug=9) einführen. Das wird auch der Standardwert für neue Nodes, wenn im EEPROM nocht 0xFF steht
+// 
 // alle 10 Minuten ein IsAlive schicken(z.B. aktuellen PulseCount)
 // Statt delay besser Mysensors wait Kommando benutzen
-// int high = readEeprom16(0);//16 Bit --> besser unsigned int. Die Funktion int readEeprom16(int pos)  müsste dann auch auf unsigned int geändert werden
-// regelmäßig AnalogValue und Debugvalue senden (alle 60 Minuten)
 // testen, ob der Sketch weiterzählt, auch wenn kein Gateway verfügbar ist
 
 /* Config from FHEM
