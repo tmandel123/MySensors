@@ -44,7 +44,7 @@ Sensoren:	Gas		Arduino Raspberry kompatible Linear Hall Magnetic Sensor Module K
 
 //ToDo: 	DEBUG_SERIAL(x) statt debugMessage
 
-// ToDo		Testmodus: Wenn dieser aktiviert ist, wird die Funktion Pulsecound alle 10 Sekunden weitergezählt und der eigentliche Zählerwert um eins Erhöht.	
+// ToDo		Testmodus: Wenn dieser aktiviert ist, wird die Funktion newPulse alle 10 Sekunden weitergezählt und der eigentliche Zählerwert um eins Erhöht.	
 //			Dafür neuen Debugmodus (z.B. debug=9) einführen. Das wird auch der Standardwert für neue Nodes, wenn im EEPROM nocht 0xFF steht
 // 
 // alle 10 Minuten ein IsAlive schicken(z.B. aktuellen PulseCount)
@@ -58,21 +58,22 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 
 */
 
-#define SKETCH_VER						"2.4.1-004"				// Sketch version
+#define SKETCH_VER						"2.4.1-006"				// Sketch version
 
 #define MY_RADIO_NRF24
 
 // #define MY_DEBUG //muss vor MySensors.h stehen
-#define SER_DEBUG
+// #define SER_DEBUG
 
 
-#define MY_REPEATER_FEATURE
+// #define MY_REPEATER_FEATURE
 #define MY_RF24_CHANNEL 96									// Für Testphase deaktivieren, damit Kanal 76 aktiv wird (Prod=96 Test=76)
 #define MY_TRANSPORT_WAIT_READY_MS (5000ul)
+#define MY_PARENT_NODE_ID 50
+#define MY_PARENT_NODE_IS_STATIC
 
-
-#define WATER
-// #define GAS
+// #define WATER
+#define GAS
 
 #ifdef WATER
 	#define MY_NODE_ID 101									// Water Node ID
@@ -242,8 +243,12 @@ void setup()
 
 void presentation()  {
 	// Send the sketch version information to the gateway and Controller
-	sendSketchInfo(SKETCH_NAME, SKETCH_VER);     
+	sendSketchInfo(SKETCH_NAME, SKETCH_VER);    
+#ifdef WATER	
 	present(CHILD_ID, S_WATER, CHILD_NAME);       
+#else
+	present(CHILD_ID, S_GAS, CHILD_NAME); 
+#endif
 	present(CHILD_ID_ANALOG, S_CUSTOM, "Analog Get Child");
 	present(CHILD_ID_DEBUG, S_CUSTOM, "Debug Set/Get Child");
 }
