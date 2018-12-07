@@ -49,10 +49,7 @@ Sensoren:	Gas		Arduino Raspberry kompatible Linear Hall Magnetic Sensor Module K
 //
 //			LED Blink bei Funktion NewPulse 
 
-//
-// alle 10 Minuten ein IsAlive schicken(z.B. aktuellen PulseCount)
-// Statt delay besser Mysensors wait Kommando benutzen
-// testen, ob der Sketch weiterzählt, auch wenn kein Gateway verfügbar ist
+
 
 /* Config from FHEM
 
@@ -161,8 +158,9 @@ MyMessage hwTime		(CHILD_ID_DEBUG, V_VAR4);
 volatile uint32_t pulseCount = 0;
 uint32_t lastPulseTime = 0;
 float flow = 0;
-boolean informGW = false;
-boolean sensorState;
+bool informGW = false;
+bool sensorState;
+bool TransportUplink = true;
 
 
 uint16_t midValue = 0;
@@ -273,6 +271,17 @@ void presentation()  {
 void loop()
 {
 	uint32_t currentTime = millis();
+	
+	if (TransportUplink)
+	{
+		digitalWrite(UPLINK_LED,HIGH);
+		
+	}
+	else
+	{
+		digitalWrite(UPLINK_LED,LOW);
+	}
+	
 	if (currentTime - lastHeartBeat > (uint32_t)HEARTBEAT_INTERVAL)
 	{
 		sendHeartbeat();
@@ -285,6 +294,7 @@ void loop()
 			send(thValueMin.set(lowThreshold));
 			send(thValueMax.set(highThreshold));
 		}
+		TransportUplink = transportCheckUplink();
 	}
 	//Serviceroutine, welche alle 60 Minuten läuft um Werte für FHEM Grafik aktuell zu halten
 	if (currentTime - lastInternalsUpdate > (uint32_t)INTERNALS_UPDATE_INTERVAL)
@@ -353,13 +363,17 @@ void loop()
 		// Pulse count has changed
 		if (pulseCount != oldPulseCount) 
 		{
+			digitalWrite(PULSE_LED,HIGH);
 			oldPulseCount = pulseCount;
 			// debugMessage("pulsecount: ", String(pulseCount));
 			send(lastCounterMsg.set(pulseCount));
 			volume = (float)pulseCount / ((float)PULSE_FACTOR);
 			// debugMessage("volume: ", String(volume, 3));
 			send(volumeMsg.set(volume, 3));
-			
+		}
+		else
+		{
+			digitalWrite(PULSE_LED,LOW);
 		}
 	}
 
