@@ -5,7 +5,60 @@
 
 // ToDo für Version 1.6: per #defines einstellen ob Strom oder Batteriebetrieb (Strom immer 5V, Batterie immer 3,3V (zumindest bei onewire)
 
+/*
 
+C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino:80:18: warning: ISO C++ forbids converting a string constant to 'char*' [-Wwrite-strings]
+
+ char* charAddr = "012345678901234567890123";
+
+                  ^
+
+C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino:81:19: warning: ISO C++ forbids converting a string constant to 'char*' [-Wwrite-strings]
+
+ char* charAddr8 = "01234567";
+
+                   ^
+
+C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino: In function 'void loop()':
+
+C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino:210:75: warning: invalid conversion from 'volatile char*' to 'byte* {aka unsigned char*}' [-fpermissive]
+
+     send(msgOwName.setSensor(CHILD_ID_Temp+i).set(ArrayToChar8(cThermoName)));
+
+                                                                           ^
+
+C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino:387:8: note:   initializing argument 1 of 'char* ArrayToChar8(byte*)'
+
+ char* ArrayToChar8(byte* data)
+
+        ^
+
+C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino:218:56: warning: invalid conversion from 'volatile char*' to 'byte* {aka unsigned char*}' [-fpermissive]
+
+  send(msgDebugThermoKnown.set(ArrayToChar8(bThermoKnown)));
+
+                                                        ^
+
+C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino:387:8: note:   initializing argument 1 of 'char* ArrayToChar8(byte*)'
+
+ char* ArrayToChar8(byte* data)
+
+        ^
+
+C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino:220:64: warning: invalid conversion from 'volatile char*' to 'byte* {aka unsigned char*}' [-fpermissive]
+
+  debugMessage("bThermoKnown: ",String(ArrayToChar8(bThermoKnown)));
+
+                                                                ^
+
+C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino:387:8: note:   initializing argument 1 of 'char* ArrayToChar8(byte*)'
+
+ char* ArrayToChar8(byte* data)
+
+        ^
+
+
+*/
 
 // Enable debug prints to serial monitor
 #define MY_DEBUG
@@ -14,14 +67,14 @@
 #define MY_RADIO_NRF24
 //#define MY_RADIO_RFM69
 //#define MY_SMART_SLEEP_WAIT_DURATION (1000ul)
- // #define MY_NODE_ID 103
+ #define MY_NODE_ID 150
  
 
 #include <SPI.h>
 #include <MySensors.h>
-#include <DallasTemperature.h>
-#include <OneWire.h>
-#include <VoltageReference.h>
+#include <DallasTemperature.h>	// https://github.com/milesburton/Arduino-Temperature-Control-Library Version 3.8.0
+#include <OneWire.h>			// https://www.pjrc.com/teensy/td_libs_OneWire.html Version 2.3.4
+#include <VoltageReference.h>	// https://github.com/rlogiacco/VoltageReference Version 1.2.2
 
 
 #define ONE_WIRE_BUS 4 // Pin where dallas sensor is connected 
@@ -29,7 +82,7 @@
 #define BATTERY_SENSE_PIN A0
 
 // Node and sketch information
-#define SKETCH_VER            		"1.6.02"        // Sketch version
+#define SKETCH_VER            		"1.6.03"        // Sketch version
 #define SKETCH_NAME           		"OneWireMasterBat"   // Optional child sensor name
 #define CHILD_ID_BAT_ANLG       		0     	//ID für Batterie Werte an A0 --> Wird angewendet, wenn 3,3V StepUp Regler am Arduino angeschlossen ist. 
 												//Batterie ohne Spannungsteiler direkt an A0 anschließen und analogReference(DEFAULT);(VREF bringt hier immer den gleichen Wert)
@@ -95,15 +148,15 @@ volatile unsigned int debugLevel = 0;
 MyMessage BatAnalogValue		(CHILD_ID_BAT_ANLG,		V_VOLTAGE);
 MyMessage BatvRefValue			(CHILD_ID_BAT_VREF,		V_VOLTAGE);
 
-MyMessage msgOwTemp				(CHILD_ID_Temp,  		V_TEMP);
-MyMessage msgOwID				(CHILD_ID_Temp,  		V_ID);
-MyMessage msgOwName				(CHILD_ID_Temp,  		V_VAR1);
-
 MyMessage msgDebugLevel     	(CHILD_ID_DEBUG, 		V_VAR1);
 MyMessage msgDebugDevCount    	(CHILD_ID_DEBUG, 		V_VAR2);
 MyMessage msgDebugThermoKnown   (CHILD_ID_DEBUG, 		V_VAR3);
 //MyMessage msgDebugThermoKnown   (CHILD_ID_DEBUG, 		V_VAR4);
 MyMessage msgDebugReturnString  (CHILD_ID_DEBUG, 		V_VAR5);
+
+MyMessage msgOwTemp				(CHILD_ID_Temp,  		V_TEMP);
+MyMessage msgOwID				(CHILD_ID_Temp,  		V_ID);
+MyMessage msgOwName				(CHILD_ID_Temp,  		V_VAR1);
 
 void before()
 {
