@@ -46,7 +46,10 @@ Sensoren:	Gas		Arduino Raspberry kompatible Linear Hall Magnetic Sensor Module K
 
 // ToDo		Testmodus: Wenn dieser aktiviert ist, wird die Funktion newPulse alle 10 Sekunden weitergezählt und der eigentliche Zählerwert um eins Erhöht.	
 //			Dafür neuen Debugmodus (z.B. debug=9) einführen. Das wird auch der Standardwert für neue Nodes, wenn im EEPROM nocht 0xFF steht
-// 
+//
+//			LED Blink bei Funktion NewPulse 
+
+//
 // alle 10 Minuten ein IsAlive schicken(z.B. aktuellen PulseCount)
 // Statt delay besser Mysensors wait Kommando benutzen
 // testen, ob der Sketch weiterzählt, auch wenn kein Gateway verfügbar ist
@@ -58,7 +61,7 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 
 */
 
-#define SKETCH_VER						"2.4.1-006"				// Sketch version
+#define SKETCH_VER						"2.4.1-008"				// Sketch version
 
 #define MY_RADIO_NRF24
 
@@ -72,8 +75,8 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 #define MY_PARENT_NODE_ID 50
 #define MY_PARENT_NODE_IS_STATIC
 
-// #define WATER
-#define GAS
+#define WATER
+// #define GAS
 
 #ifdef WATER
 	#define MY_NODE_ID 101									// Water Node ID
@@ -110,11 +113,15 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 
 // Input and output definitions
 #define ANALOG_INPUT_SENSOR				A0					// The analog input you attached your sensor. 
+#define UPLINK_LED						5
+#define PULSE_LED						6
+#define	PULSE_LED_BLINK_TIME			500
 
 // Sonstige Werte
 #define HEARTBEAT_INTERVAL				300000				//später alle 5 Minuten, zum Test alle 30 Sekunden
 #define INTERNALS_UPDATE_INTERVAL		3600000				//jede Stunde Update senden (Debug, Threshold usw)
 #define SEND_FREQUENCY					30000
+// #define CHECK_UPLINK_FREQUENCY			30000
 
 
 
@@ -152,18 +159,19 @@ MyMessage hwTime		(CHILD_ID_DEBUG, V_VAR4);
 
 
 volatile uint32_t pulseCount = 0;
-volatile uint32_t lastBlink = 0;
-volatile float flow = 0;
-volatile boolean informGW = false;
-volatile boolean sensorState;
+uint32_t lastPulseTime = 0;
+float flow = 0;
+boolean informGW = false;
+boolean sensorState;
+
 
 uint16_t midValue = 0;
-uint16_t debugLevel = 0;								// sets the debug level, 0 = basic info. 1 = streaming level info. 2 = sent level streaming to gateway.
+uint8_t debugLevel = 0;								// sets the debug level, 0 = basic info. 1 = streaming level info. 2 = sent level streaming to gateway.
 
 uint32_t oldPulseCount = 0;
-uint32_t newBlink = 0;
+// uint32_t newPulseTime = 0;									// TM: 2018-12-03 kann weg, wird in NewPulse initialisiert
 uint32_t lastSend = 0;
-uint32_t lastPulse = 0;
+// uint32_t lastPulse = 0;									// TM: 2018-12-03	kann weg, macht das selbe wir lastPulseTime
 uint32_t lastHeartBeat = 0;
 uint32_t lastInternalsUpdate = INTERNALS_UPDATE_INTERVAL-15000; //15 Sec nach Start Werte aktualisieren
 uint16_t sensorValue;
@@ -171,17 +179,21 @@ uint16_t sensorValue;
 float ppl = ((float)PULSE_FACTOR) / 1000;					// Pulses per liter
 float oldflow = 0;
 float volume = 0;
-float oldvolume = 0;
+// float oldvolume = 0;										// TM: 2018-12-03	kann weg, volume ist sowieso geänert, wenn es einen neuen pulseCount gab
 
 
 void preHwInit() 
 {
+
+	
 #ifdef SER_DEBUG
 	Serial.begin(115200);
 #endif
 
 	DEBUG_PRINTLN("preHwInit: ");
 	// showEEprom();
+	hwPinMode(UPLINK_LED, OUTPUT);
+	hwPinMode(PULSE_LED, OUTPUT);
 }
 
 void before() 
@@ -204,40 +216,45 @@ void setup()
 	uint32_t MeterValue = readEeprom32(EEPROM_METER_VALUE);
 	DEBUG_PRINT("readEeprom32: EEPROM_METER_VALUE ");
 	DEBUG_PRINTLN(MeterValue);
-	pulseCount = oldPulseCount = MeterValue;
+	pulseCount = MeterValue;
+	oldPulseCount = MeterValue;
+	volume = (float)pulseCount / ((float)PULSE_FACTOR);
 
-	lastHeartBeat = lastSend = lastPulse = millis();
+	lastHeartBeat = millis();
+	lastSend = lastHeartBeat;
+	lastPulseTime = lastHeartBeat;
 
 	// Fetch debug level from EEPROM
 	debugLevel = loadState(EEPROM_DEBUGLEVEL); //8 Bit
-	debugMessage("Debug level fetched from EEPROM, value: ", String(debugLevel));
+	// debugMessage("Debug level fetched from EEPROM, value: ", String(debugLevel));
 	
 	if (debugLevel == 255)//vermutlich wurde das EEPROM an dieser Stelle noch nicht beschrieben
 	{
 		debugLevel=0;
 		saveState(EEPROM_DEBUGLEVEL,debugLevel);
-		debugMessage("Debug level defaults stored to  EEPROM, value: ", String(debugLevel));
+		// debugMessage("Debug level defaults stored to  EEPROM, value: ", String(debugLevel));
 	}
 
-	// Fetch the last set thresholds from EEPROM
+	
 	uint16_t high = readEeprom16(EEPROM_HI_THRESHOLD);//16 Bit , weil 1024 nicht in 8 Bit reinpasst
 	uint16_t low = readEeprom16(EEPROM_LO_THRESHOLD); //16 Bit
-	if (high == 0 || high == 65535 || low == 0 || low == 65535) 
+	if (high == 0 || high == 65535 || low == 0 || low == 65535) //frisches EEPROM mit neuen Standardwerten beschreiben und highThreshold und lowThreshold belassen wie im Programmkopf gesetzt
 	{
-		
-		debugMessage("High threshold set to standard value: ", String(highThreshold));
-		debugMessage("Low threshold set to standard value: ", String(lowThreshold));
+		writeEeprom16(EEPROM_HI_THRESHOLD, highThreshold);
+		writeEeprom16(EEPROM_LO_THRESHOLD, lowThreshold);
+		// debugMessage("High threshold set to standard value: ", String(highThreshold));
+		// debugMessage("Low threshold set to standard value: ", String(lowThreshold));
 	}
 	else 
 	{
 		highThreshold = high;
 		lowThreshold = low;
-		debugMessage("High threshold fetched from EEPROM, value: ", String(highThreshold));
-		debugMessage("Low threshold fetched from EEPROM, value: ", String(lowThreshold));
+		// debugMessage("High threshold fetched from EEPROM, value: ", String(highThreshold));
+		// debugMessage("Low threshold fetched from EEPROM, value: ", String(lowThreshold));
 	}
 	midValue=uint16_t((lowThreshold+highThreshold)/2);	// Mittelwert von Threshold Max und Min (Soll minValue und maxValue begrenzen)
-	debugMessage("midValue: ", String(midValue));
-	debugMessage("Setup: ","End");
+	// debugMessage("midValue: ", String(midValue));
+	// debugMessage("Setup: ","End");
 }
 
 
@@ -245,9 +262,9 @@ void presentation()  {
 	// Send the sketch version information to the gateway and Controller
 	sendSketchInfo(SKETCH_NAME, SKETCH_VER);    
 #ifdef WATER	
-	present(CHILD_ID, S_WATER, CHILD_NAME);       
+	present(CHILD_ID, S_WATER, CHILD_NAME, "Counter Child");       
 #else
-	present(CHILD_ID, S_GAS, CHILD_NAME); 
+	present(CHILD_ID, S_GAS, CHILD_NAME, "Counter Child"); 
 #endif
 	present(CHILD_ID_ANALOG, S_CUSTOM, "Analog Get Child");
 	present(CHILD_ID_DEBUG, S_CUSTOM, "Debug Set/Get Child");
@@ -275,11 +292,11 @@ void loop()
 		//Min und Max etwas Näher an den Durchschnitt heranziehen, gibt es auch bei der Flowberechnung
 		if (minValue < (midValue - 4 ))
 		{
-				  minValue++;
+			minValue++;
 		}
 		if (maxValue > (midValue + 4 ))
 		{
-		  maxValue--;
+			maxValue--;
 		}
 		writeEeprom32(EEPROM_METER_VALUE, pulseCount);
 		
@@ -306,7 +323,7 @@ void loop()
 
 		if (flow != oldflow) {
 			oldflow = flow;
-			debugMessage("l/min:", String(flow));
+			// debugMessage("l/min:", String(flow));
 
 			if (flow < ((uint32_t)MAX_FLOW)) {
 				// Send flow value to gw
@@ -316,20 +333,20 @@ void loop()
 				//Min und Max etwas Näher an den Durchschnitt heranziehen
 				if (minValue < (midValue - 4 ))
 				{
-						  minValue++;
+					minValue++;
 				}
 				if (maxValue > (midValue + 4 ))
 				{
-				  maxValue--;
+					maxValue--;
 				}
-				debugMessage("MinNeu:", String(minValue));
-				debugMessage("MaxNeu:", String(maxValue));
-				
+				// debugMessage("MinNeu:", String(minValue));
+				// debugMessage("MaxNeu:", String(maxValue));
 			}
 		}
 
 		// No Pulse count received in 2min 
-		if (currentTime - lastPulse > 120000) {
+		if (currentTime - lastPulseTime > 120000) 
+		{
 			flow = 0;
 		}
 
@@ -337,17 +354,12 @@ void loop()
 		if (pulseCount != oldPulseCount) 
 		{
 			oldPulseCount = pulseCount;
-			debugMessage("pulsecount: ", String(pulseCount));
+			// debugMessage("pulsecount: ", String(pulseCount));
 			send(lastCounterMsg.set(pulseCount));
-			// float volume = ((float)pulseCount / ((float)PULSE_FACTOR));
 			volume = (float)pulseCount / ((float)PULSE_FACTOR);
-
-			if (volume != oldvolume)
-			{
-				oldvolume = volume;
-				debugMessage("volume: ", String(volume, 3));
-				send(volumeMsg.set(volume, 3));
-			}
+			// debugMessage("volume: ", String(volume, 3));
+			send(volumeMsg.set(volume, 3));
+			
 		}
 	}
 
@@ -363,7 +375,7 @@ void debugMessage(String header, String content)
 
 void receive(const MyMessage &message)
 {
-	debugMessage("Receiver: ", String(message.sensor));
+	// debugMessage("Receiver: ", String(message.sensor));
 	if (message.sensor == CHILD_ID_ANALOG)
 	{
 		switch (message.type) 
@@ -374,7 +386,7 @@ void receive(const MyMessage &message)
 				// pulseCount = gwPulseCount;
 				pulseCount = message.getULong();
 				flow = oldflow = 0;
-				debugMessage("Received last pulse count from gw: ", String(pulseCount));
+				// debugMessage("Received last pulse count from gw: ", String(pulseCount));
 				// pcReceived = true;
 				informGW = true;
 				writeEeprom32(EEPROM_METER_VALUE, pulseCount);
@@ -389,14 +401,14 @@ void receive(const MyMessage &message)
 			{
 				debugLevel = message.getULong();
 				saveState(EEPROM_DEBUGLEVEL, debugLevel);//8 Bit
-				debugMessage("Received new debug state from gw: ", String(debugLevel));
+				// debugMessage("Received new debug state from gw: ", String(debugLevel));
 			}
 			break;
 			case V_VAR2: 
 			{
 				lowThreshold = message.getULong();
 				writeEeprom16(EEPROM_LO_THRESHOLD, lowThreshold); //16 Bit
-				debugMessage("Received new low threshold from gw: ", String(lowThreshold));
+				// debugMessage("Received new low threshold from gw: ", String(lowThreshold));
 				informGW = true;
 			}
 			break;
@@ -404,7 +416,7 @@ void receive(const MyMessage &message)
 			{
 				highThreshold = message.getULong();
 				writeEeprom16(EEPROM_HI_THRESHOLD, highThreshold); // 16 Bit
-				debugMessage("Received new high threshold from gw: ", String(highThreshold));
+				// debugMessage("Received new high threshold from gw: ", String(highThreshold));
 				informGW = true;
 			}
 			break;
@@ -412,7 +424,7 @@ void receive(const MyMessage &message)
   	}
 	else
 	{
-		debugMessage("Received invalid message from gw! ", "");
+		// debugMessage("Received invalid message from gw! ", "");
 	}
     midValue=uint16_t((lowThreshold+highThreshold)/2);
 
@@ -421,40 +433,39 @@ void receive(const MyMessage &message)
 
 void newPulse()
 {
-	uint32_t newBlink = millis();
-	uint32_t interval = newBlink - lastBlink;
+	uint32_t newPulseTime = millis();
+	uint32_t interval = newPulseTime - lastPulseTime;
 	if (debugLevel > 0)
 	{
-		debugMessage("new Pulse Interval since last ", String(interval));
+		// debugMessage("new Pulse Interval since last ", String(interval));
 	}
 
 	if (interval != 0) 
 	{
-		lastPulse = millis();
 		flow = (60000.0 / interval) / ppl;
 	}
-	lastBlink = newBlink;
+	lastPulseTime = newPulseTime;
 
 	pulseCount++;
 }
 
 void checkThreshold() {
   
-  sensorValue = getAverage();
-  if (minValue>=sensorValue)
-  {
-    minValue=sensorValue;
-  }
-  if (maxValue<=sensorValue)
-  {
-    maxValue=sensorValue;
-  }
+	sensorValue = getAverage();
+	if (minValue>=sensorValue)
+	{
+		minValue=sensorValue;
+	}
+	if (maxValue<=sensorValue)
+	{
+		maxValue=sensorValue;
+	}
  
 	if (debugLevel > 0) 
 	{
-		debugMessage("val = ", String(sensorValue, DEC));
-		debugMessage("min = ", String(minValue, DEC));
-		debugMessage("max = ", String(maxValue, DEC));
+		// debugMessage("val = ", String(sensorValue, DEC));
+		// debugMessage("min = ", String(minValue, DEC));
+		// debugMessage("max = ", String(maxValue, DEC));
 		send(debugValue.set(debugLevel));
 		send(thValueMin.set(lowThreshold));
 		send(thValueMax.set(highThreshold));
@@ -475,8 +486,8 @@ void checkThreshold() {
 
 		if (debugLevel == 3) 
 		{
-		  debugMessage("flow dummy: ", "123.123");
-		  debugMessage("volume dummy: ", "456.45");
+		  // debugMessage("flow dummy: ", "123.123");
+		  // debugMessage("volume dummy: ", "456.45");
 		  send(volumeMsg.set(123.123, 3));
 		  send(flowMsg.set(456.45, 2));
 		  wait(800);
@@ -486,13 +497,13 @@ void checkThreshold() {
 	{
 		newPulse();
 		sensorState = !sensorState;
-		debugMessage("pulsCount + 1", "");
-		debugMessage("Sensor state: ", String(sensorState));
+		// debugMessage("pulsCount + 1", "");
+		// debugMessage("Sensor state: ", String(sensorState));
 	}
 	if ((sensorState == false) && (sensorValue > highThreshold)) 
 	{
 		sensorState = !sensorState;
-		debugMessage("Sensor state: ", String(sensorState));
+		// debugMessage("Sensor state: ", String(sensorState));
 	}
 }
 
@@ -500,13 +511,11 @@ int getAverage()
 {
 	// hier wird 100 Mal eingelesen. 10 Mal hintereinander analogRead ohne Pause. Dann 50ms Pause. Dies wird dann 10 Mal wiederholt
 	uint8_t cycles = 0;
+	uint8_t count = 0;       // variable for loop
 	uint16_t val = 0;     // variable to store current values from the input
 	uint16_t newVal = 0;      // variable to store new values from the input
 	uint16_t average = 0;    // variable to store the peak value
-	uint8_t count = 0;       // variable for loop
 
-						 // take 10 samples over half a second 
-						 // for each sample the input is taken 10 times
 	for (cycles = 0; cycles < 10; cycles++) {
 		// read input 10 times and get the sum
 		// "ANALOG_INPUT_SENSOR" was defined in main program as shown below:
@@ -542,10 +551,10 @@ void writeEeprom16(uint8_t pos, uint16_t value)
   saveState(pos, ((uint16_t)value >> 8));
   pos++;
   saveState(pos, (value & 0xff));
-  Serial.print("writeEeprom16: Pos ");
-  Serial.print(pos);
-  Serial.print("Value ");
-  Serial.println(value);
+  // Serial.print("writeEeprom16: Pos ");
+  // Serial.print(pos);
+  // Serial.print("Value ");
+  // Serial.println(value);
 }
 
 uint16_t readEeprom16(uint8_t pos) 
@@ -560,10 +569,10 @@ uint16_t readEeprom16(uint8_t pos)
   pos++;
   loByte = loadState(pos);
   
-  Serial.print("readEeprom16: Pos ");
-  Serial.print(pos);
-  Serial.print(" Value ");
-  Serial.println(hiByte | loByte);
+  // Serial.print("readEeprom16: Pos ");
+  // Serial.print(pos);
+  // Serial.print(" Value ");
+  // Serial.println(hiByte | loByte);
   
   return (hiByte | loByte);
 }
@@ -621,7 +630,7 @@ void showEEprom()
 			}
 			counter++;
 		}	
-		Serial.println("");
+		DEBUG_PRINTLN("");
 	}
 }
 
