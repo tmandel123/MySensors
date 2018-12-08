@@ -58,7 +58,7 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 
 */
 
-#define SKETCH_VER						"2.4.1-008"				// Sketch version
+#define SKETCH_VER						"2.4.1-011"				// Sketch version
 
 #define MY_RADIO_NRF24
 
@@ -71,9 +71,10 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 #define MY_TRANSPORT_WAIT_READY_MS (5000ul)
 #define MY_PARENT_NODE_ID 50
 #define MY_PARENT_NODE_IS_STATIC
+#define MY_SPLASH_SCREEN_DISABLED
 
-#define WATER
-// #define GAS
+// #define WATER
+#define GAS
 
 #ifdef WATER
 	#define MY_NODE_ID 101									// Water Node ID
@@ -112,12 +113,12 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 #define ANALOG_INPUT_SENSOR				A0					// The analog input you attached your sensor. 
 #define UPLINK_LED						5
 #define PULSE_LED						6
-#define	PULSE_LED_BLINK_TIME			500
+// #define	PULSE_LED_BLINK_TIME			500
 
 // Sonstige Werte
-#define HEARTBEAT_INTERVAL				300000				//später alle 5 Minuten, zum Test alle 30 Sekunden
+#define HEARTBEAT_INTERVAL				30000				//später alle 5 Minuten, zum Test alle 30 Sekunden
 #define INTERNALS_UPDATE_INTERVAL		3600000				//jede Stunde Update senden (Debug, Threshold usw)
-#define SEND_FREQUENCY					30000
+#define SEND_FREQUENCY					20000
 // #define CHECK_UPLINK_FREQUENCY			30000
 
 
@@ -156,29 +157,27 @@ MyMessage hwTime		(CHILD_ID_DEBUG, V_VAR4);
 
 
 volatile uint32_t pulseCount = 0;
-uint32_t lastPulseTime = 0;
-float flow = 0;
-bool informGW = false;
-bool sensorState;
-bool TransportUplink = true;
 
+bool informGW = false;
+bool sensorState = true;
+bool TransportUplink = true;
+bool firstLoop = true;
+
+uint8_t debugLevel = 0;										// sets the debug level, 0 = basic info. 1 = streaming level info. 2 = sent level streaming to gateway.
 
 uint16_t midValue = 0;
-uint8_t debugLevel = 0;								// sets the debug level, 0 = basic info. 1 = streaming level info. 2 = sent level streaming to gateway.
+uint16_t sensorValue = 0;
 
 uint32_t oldPulseCount = 0;
-// uint32_t newPulseTime = 0;									// TM: 2018-12-03 kann weg, wird in NewPulse initialisiert
 uint32_t lastSend = 0;
-// uint32_t lastPulse = 0;									// TM: 2018-12-03	kann weg, macht das selbe wir lastPulseTime
 uint32_t lastHeartBeat = 0;
-uint32_t lastInternalsUpdate = INTERNALS_UPDATE_INTERVAL-15000; //15 Sec nach Start Werte aktualisieren
-uint16_t sensorValue;
+uint32_t lastInternalsUpdate = 0; 							//15 Sec nach Start Werte aktualisieren
+uint32_t lastPulseTime = 0;
 
 float ppl = ((float)PULSE_FACTOR) / 1000;					// Pulses per liter
 float oldflow = 0;
 float volume = 0;
-// float oldvolume = 0;										// TM: 2018-12-03	kann weg, volume ist sowieso geänert, wenn es einen neuen pulseCount gab
-
+float flow = 0;
 
 void preHwInit() 
 {
@@ -188,7 +187,7 @@ void preHwInit()
 	Serial.begin(115200);
 #endif
 
-	DEBUG_PRINTLN("preHwInit: ");
+	// DEBUG_PRINTLN("preHwInit: ");
 	// showEEprom();
 	hwPinMode(UPLINK_LED, OUTPUT);
 	hwPinMode(PULSE_LED, OUTPUT);
@@ -221,6 +220,7 @@ void setup()
 	lastHeartBeat = millis();
 	lastSend = lastHeartBeat;
 	lastPulseTime = lastHeartBeat;
+	lastInternalsUpdate = lastHeartBeat;
 
 	// Fetch debug level from EEPROM
 	debugLevel = loadState(EEPROM_DEBUGLEVEL); //8 Bit
@@ -275,14 +275,13 @@ void loop()
 	if (TransportUplink)
 	{
 		digitalWrite(UPLINK_LED,HIGH);
-		
 	}
 	else
 	{
 		digitalWrite(UPLINK_LED,LOW);
 	}
 	
-	if (currentTime - lastHeartBeat > (uint32_t)HEARTBEAT_INTERVAL)
+	if (((currentTime - lastHeartBeat > (uint32_t)HEARTBEAT_INTERVAL)) || firstLoop || informGW)
 	{
 		sendHeartbeat();
 		send(hwTime.set(currentTime));
@@ -296,9 +295,11 @@ void loop()
 		}
 		TransportUplink = transportCheckUplink();
 	}
+	
 	//Serviceroutine, welche alle 60 Minuten läuft um Werte für FHEM Grafik aktuell zu halten
-	if (currentTime - lastInternalsUpdate > (uint32_t)INTERNALS_UPDATE_INTERVAL)
+	if ((currentTime - lastInternalsUpdate > (uint32_t)INTERNALS_UPDATE_INTERVAL) || firstLoop)
 	{
+		firstLoop = false;
 		//Min und Max etwas Näher an den Durchschnitt heranziehen, gibt es auch bei der Flowberechnung
 		if (minValue < (midValue - 4 ))
 		{
@@ -327,55 +328,56 @@ void loop()
 	checkThreshold();
 
 	// Only send values at a maximum frequency
-	if (currentTime - lastSend > (uint32_t)SEND_FREQUENCY) 
-	{
-		lastSend = currentTime;
+	// if (currentTime - lastSend > (uint32_t)SEND_FREQUENCY) 
+	// {
+		// lastSend = currentTime;
 
-		if (flow != oldflow) {
-			oldflow = flow;
-			// debugMessage("l/min:", String(flow));
+	if (flow != oldflow) {
+		oldflow = flow;
+		// debugMessage("l/min:", String(flow));
 
-			if (flow < ((uint32_t)MAX_FLOW)) {
-				// Send flow value to gw
-				send(flowMsg.set(flow, 2));
-				send(MsgMinValue.set(minValue));
-				send(MsgMaxValue.set(maxValue));
-				//Min und Max etwas Näher an den Durchschnitt heranziehen
-				if (minValue < (midValue - 4 ))
-				{
-					minValue++;
-				}
-				if (maxValue > (midValue + 4 ))
-				{
-					maxValue--;
-				}
-				// debugMessage("MinNeu:", String(minValue));
-				// debugMessage("MaxNeu:", String(maxValue));
+		if (flow < ((float)MAX_FLOW)) 
+		{
+			// Send flow value to gw
+			send(flowMsg.set(flow, 2));
+			send(MsgMinValue.set(minValue));
+			send(MsgMaxValue.set(maxValue));
+			//Min und Max etwas Näher an den Durchschnitt heranziehen
+			if (minValue < (midValue - 4 ))
+			{
+				minValue++;
 			}
-		}
-
-		// No Pulse count received in 2min 
-		if (currentTime - lastPulseTime > 120000) 
-		{
-			flow = 0;
-		}
-
-		// Pulse count has changed
-		if (pulseCount != oldPulseCount) 
-		{
-			digitalWrite(PULSE_LED,HIGH);
-			oldPulseCount = pulseCount;
-			// debugMessage("pulsecount: ", String(pulseCount));
-			send(lastCounterMsg.set(pulseCount));
-			volume = (float)pulseCount / ((float)PULSE_FACTOR);
-			// debugMessage("volume: ", String(volume, 3));
-			send(volumeMsg.set(volume, 3));
-		}
-		else
-		{
-			digitalWrite(PULSE_LED,LOW);
+			if (maxValue > (midValue + 4 ))
+			{
+				maxValue--;
+			}
+			// debugMessage("MinNeu:", String(minValue));
+			// debugMessage("MaxNeu:", String(maxValue));
 		}
 	}
+
+	// No Pulse count received in 2min 
+	if (currentTime - lastPulseTime > (uint32_t)120000) 
+	{
+		flow = 0;
+	}
+
+	// Pulse count has changed
+	if (pulseCount != oldPulseCount) 
+	{
+		digitalWrite(PULSE_LED,HIGH);
+		oldPulseCount = pulseCount;
+		// debugMessage("pulsecount: ", String(pulseCount));
+		send(lastCounterMsg.set(pulseCount));
+		volume = (float)pulseCount / ((float)PULSE_FACTOR);
+		// debugMessage("volume: ", String(volume, 3));
+		send(volumeMsg.set(volume, 3));
+	}
+	else
+	{
+		digitalWrite(PULSE_LED,LOW);
+	}
+	// }
 
 }
 
