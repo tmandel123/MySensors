@@ -58,12 +58,12 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 
 */
 
-#define SKETCH_VER						"2.4.1-011"				// Sketch version
+#define SKETCH_VER						"2.4.1-012"				// Sketch version
 
 #define MY_RADIO_NRF24
 
 // #define MY_DEBUG //muss vor MySensors.h stehen
-// #define SER_DEBUG
+#define SER_DEBUG
 
 
 // #define MY_REPEATER_FEATURE
@@ -74,7 +74,7 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 #define MY_SPLASH_SCREEN_DISABLED
 
 // #define WATER
-#define GAS
+// #define GAS
 
 #ifdef WATER
 	#define MY_NODE_ID 101									// Water Node ID
@@ -86,12 +86,22 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 	uint16_t lowThreshold = 			80;					// lower threshold for analog readings
 	uint16_t maxValue = 				210;
 	uint16_t minValue = 				40;
-#else
+#elsif GAS
 	#define MY_NODE_ID 102									// Gas Node ID
 	#define SKETCH_NAME					"Gas Meter"			// Optional child sensor name
 	#define PULSE_FACTOR				100					// Number of blinks per m3 of your meter (One rotation/liter)
 	#define MAX_FLOW					40					// Max flow (l/min) value to report. This filters outliers.
 	#define CHILD_NAME					"Gasmeter"			// Optional child sensor name
+	uint16_t highThreshold =			500;				// higher threshold for analog readings
+	uint16_t lowThreshold =				494;				// lower threshold for analog readings
+	uint16_t maxValue = 				516;
+	uint16_t minValue = 				486;
+#else //TEST
+	#define MY_NODE_ID 223									// Test Node ID
+	#define SKETCH_NAME					"-TEST- Meter"			// Optional child sensor name
+	#define PULSE_FACTOR				100					// Number of blinks per m3 of your meter (One rotation/liter)
+	#define MAX_FLOW					40					// Max flow (l/min) value to report. This filters outliers.
+	#define CHILD_NAME					"-Test-Child-"			// Optional child sensor name
 	uint16_t highThreshold =			500;				// higher threshold for analog readings
 	uint16_t lowThreshold =				494;				// lower threshold for analog readings
 	uint16_t maxValue = 				516;
@@ -114,11 +124,13 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 #define UPLINK_LED						5
 #define PULSE_LED						6
 // #define	PULSE_LED_BLINK_TIME			500
+#define SEND_WAIT						10
+#define REQUEST_ACK						true
 
 // Sonstige Werte
 #define HEARTBEAT_INTERVAL				30000				//später alle 5 Minuten, zum Test alle 30 Sekunden
 #define INTERNALS_UPDATE_INTERVAL		3600000				//jede Stunde Update senden (Debug, Threshold usw)
-#define SEND_FREQUENCY					20000
+// #define SEND_FREQUENCY					20000
 // #define CHECK_UPLINK_FREQUENCY			30000
 
 
@@ -183,20 +195,20 @@ void preHwInit()
 {
 
 	
-#ifdef SER_DEBUG
-	Serial.begin(115200);
-#endif
+// #ifdef SER_DEBUG
+	// Serial.begin(115200);
+// #endif
 
 	// DEBUG_PRINTLN("preHwInit: ");
 	// showEEprom();
-	hwPinMode(UPLINK_LED, OUTPUT);
-	hwPinMode(PULSE_LED, OUTPUT);
+	// hwPinMode(UPLINK_LED, OUTPUT);
+	// hwPinMode(PULSE_LED, OUTPUT);
 }
 
 void before() 
 {
 
-	DEBUG_PRINTLN("before: ");
+	// DEBUG_PRINTLN("before: ");
 	// DEBUG_PRINTLN("writeEeprom32: ");
 	// writeEeprom32(EEPROM_METER_VALUE, 338849);
 	// showEEprom();
@@ -210,6 +222,9 @@ void setup()
 {
 
 	DEBUG_PRINTLN("setup: ");
+	hwPinMode(UPLINK_LED, OUTPUT);
+	hwPinMode(PULSE_LED, OUTPUT);
+	
 	uint32_t MeterValue = readEeprom32(EEPROM_METER_VALUE);
 	DEBUG_PRINT("readEeprom32: EEPROM_METER_VALUE ");
 	DEBUG_PRINTLN(MeterValue);
@@ -271,29 +286,51 @@ void presentation()  {
 void loop()
 {
 	uint32_t currentTime = millis();
+	uint32_t TimeSinceHeartBeat = currentTime - lastHeartBeat;
 	
-	if (TransportUplink)
-	{
-		digitalWrite(UPLINK_LED,HIGH);
-	}
-	else
-	{
-		digitalWrite(UPLINK_LED,LOW);
-	}
+	// if (TransportUplink)
+	// {
+		// digitalWrite(UPLINK_LED,HIGH);
+	// }
+	// else
+	// {
+		// digitalWrite(UPLINK_LED,LOW);
+	// }
 	
-	if (((currentTime - lastHeartBeat > (uint32_t)HEARTBEAT_INTERVAL)) || firstLoop || informGW)
+	if (((TimeSinceHeartBeat > (uint32_t)HEARTBEAT_INTERVAL)) || firstLoop || informGW)
 	{
-		sendHeartbeat();
-		send(hwTime.set(currentTime));
+		if (firstLoop)
+		{
+			DEBUG_PRINTLN("firstLoop");
+		}
+		DEBUG_PRINT("TimeSinceHeartBeat: ");
+		DEBUG_PRINTLN(TimeSinceHeartBeat);
+		DEBUG_PRINTLN("transportCheckUplink");
+		TransportUplink = transportCheckUplink();
+		DEBUG_PRINT("Result: ");
+		DEBUG_PRINTLN(TransportUplink);
+
+
+		// DEBUG_PRINT("firstLoop");
+		// DEBUG_PRINTLN(firstLoop);
+		// DEBUG_PRINT("informGW");
+		// DEBUG_PRINTLN(informGW);
+		// sendHeartbeat();
+		send(hwTime.set(currentTime),REQUEST_ACK);
+		wait(SEND_WAIT);
 		lastHeartBeat = currentTime;
 		if (informGW)
 		{
 			informGW = false;
-			send(lastCounterMsg.set(pulseCount));
-			send(thValueMin.set(lowThreshold));
-			send(thValueMax.set(highThreshold));
+			send(lastCounterMsg.set(pulseCount),REQUEST_ACK);
+			wait(SEND_WAIT);
+			send(thValueMin.set(lowThreshold),REQUEST_ACK);
+			wait(SEND_WAIT);
+			send(thValueMax.set(highThreshold),REQUEST_ACK);
+			wait(SEND_WAIT);
 		}
-		TransportUplink = transportCheckUplink();
+
+		
 	}
 	
 	//Serviceroutine, welche alle 60 Minuten läuft um Werte für FHEM Grafik aktuell zu halten
@@ -309,18 +346,32 @@ void loop()
 		{
 			maxValue--;
 		}
-		writeEeprom32(EEPROM_METER_VALUE, pulseCount);
 		
-		send(debugValue.set(debugLevel));
-		send(thValueMin.set(lowThreshold));
-		send(thValueMax.set(highThreshold));
-		send(analogValue.set(sensorValue));
-		send(MsgMinValue.set(minValue));
-		send(MsgMaxValue.set(maxValue));
-		send(flowMsg.set(flow, 2));
-		send(lastCounterMsg.set(pulseCount));
-		send(volumeMsg.set(volume, 3));
-		send(MeterValue.set(pulseCount));
+		if (!firstLoop)
+		{
+			writeEeprom32(EEPROM_METER_VALUE, pulseCount);
+		}
+		
+		send(debugValue.set(debugLevel),REQUEST_ACK);
+		wait(SEND_WAIT);
+		send(thValueMin.set(lowThreshold),REQUEST_ACK);
+		wait(SEND_WAIT);
+		send(thValueMax.set(highThreshold),REQUEST_ACK);
+		wait(SEND_WAIT);
+		send(analogValue.set(sensorValue),REQUEST_ACK);
+		wait(SEND_WAIT);
+		send(MsgMinValue.set(minValue),REQUEST_ACK);
+		wait(SEND_WAIT);
+		send(MsgMaxValue.set(maxValue),REQUEST_ACK);
+		wait(SEND_WAIT);
+		send(flowMsg.set(flow, 2),REQUEST_ACK);
+		wait(SEND_WAIT);
+		send(lastCounterMsg.set(pulseCount),REQUEST_ACK);
+		wait(SEND_WAIT);
+		send(volumeMsg.set(volume, 3),REQUEST_ACK);
+		wait(SEND_WAIT);
+		send(MeterValue.set(pulseCount),REQUEST_ACK);
+		wait(SEND_WAIT);
 		
 		lastInternalsUpdate = currentTime;
 	}
@@ -340,8 +391,11 @@ void loop()
 		{
 			// Send flow value to gw
 			send(flowMsg.set(flow, 2));
+			wait(SEND_WAIT);
 			send(MsgMinValue.set(minValue));
+			wait(SEND_WAIT);
 			send(MsgMaxValue.set(maxValue));
+			wait(SEND_WAIT);
 			//Min und Max etwas Näher an den Durchschnitt heranziehen
 			if (minValue < (midValue - 4 ))
 			{
@@ -377,7 +431,8 @@ void loop()
 	{
 		digitalWrite(PULSE_LED,LOW);
 	}
-	// }
+	// 
+	// DEBUG_PRINT(".");
 
 }
 
@@ -449,6 +504,7 @@ void receive(const MyMessage &message)
 
 void newPulse()
 {
+	DEBUG_PRINTLN("newPulse");
 	uint32_t newPulseTime = millis();
 	uint32_t interval = newPulseTime - lastPulseTime;
 	if (debugLevel > 0)
@@ -467,6 +523,7 @@ void newPulse()
 
 void checkThreshold() {
   
+	// DEBUG_PRINTLN("checkThreshold");
 	sensorValue = getAverage();
 	if (minValue>=sensorValue)
 	{
@@ -527,12 +584,13 @@ int getAverage()
 {
 	// hier wird 100 Mal eingelesen. 10 Mal hintereinander analogRead ohne Pause. Dann 50ms Pause. Dies wird dann 10 Mal wiederholt
 	uint8_t cycles = 0;
+	uint8_t maxCycles = 4;
 	uint8_t count = 0;       // variable for loop
 	uint16_t val = 0;     // variable to store current values from the input
 	uint16_t newVal = 0;      // variable to store new values from the input
 	uint16_t average = 0;    // variable to store the peak value
 
-	for (cycles = 0; cycles < 10; cycles++) {
+	for (cycles = 0; cycles < maxCycles; cycles++) {
 		// read input 10 times and get the sum
 		// "ANALOG_INPUT_SENSOR" was defined in main program as shown below:
 		// "#define ANALOG_INPUT_SENSOR A0"
@@ -547,10 +605,10 @@ int getAverage()
 		val = 0;
 		// measure samples over half a second or "newVal" will
 		// almost always be the same resulting in wrong average
-		wait(10); // 10 cycles of 50ms gives  10 samples in 500ms
+		wait(5); // 10 cycles of 50ms gives  10 samples in 500ms
 	}
 	// set average to average of newValue1
-	average = newVal / 10;
+	average = newVal / maxCycles;
 
 	// return the value of average to main program
 	return average;
