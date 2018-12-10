@@ -39,9 +39,18 @@
 // Enable debug prints to serial monitor
 // #define MY_DEBUG
 #define MY_RADIO_NRF24
-// #define MY_RF24_CHANNEL 96
+#define MY_RF24_CHANNEL 96
+
+// #define MY_RF24_PA_LEVEL RF24_PA_MAX //liefert fast nur NACK
 // #define MY_RF24_PA_LEVEL RF24_PA_HIGH
-#define MY_RF24_PA_LEVEL RF24_PA_LOW
+#define MY_RF24_PA_LEVEL RF24_PA_LOW //läuft ohne Fehler, aber keine große Reichweite
+
+/*
+RF24_PA_MIN = -18dBm 
+RF24_PA_LOW = -12dBm 
+RF24_PA_HIGH = -6dBm 
+RF24_PA_MAX = 0dBm
+*/
 
 // Enable serial gateway
 #define MY_GATEWAY_SERIAL
