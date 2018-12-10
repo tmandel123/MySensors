@@ -58,7 +58,7 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 
 */
 
-#define SKETCH_VER						"2.4.1-012"				// Sketch version
+#define SKETCH_VER						"2.4.1-013"				// Sketch version
 
 #define MY_RADIO_NRF24
 
@@ -70,10 +70,11 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 #define MY_RF24_CHANNEL 96									// Für Testphase deaktivieren, damit Kanal 76 aktiv wird (Prod=96 Test=76)
 #define MY_TRANSPORT_WAIT_READY_MS (5000ul)
 #define MY_PARENT_NODE_ID 50
+// #define MY_PARENT_NODE_ID 0
 #define MY_PARENT_NODE_IS_STATIC
 #define MY_SPLASH_SCREEN_DISABLED
 
-// #define WATER
+#define WATER
 // #define GAS
 
 #ifdef WATER
@@ -86,7 +87,7 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 	uint16_t lowThreshold = 			80;					// lower threshold for analog readings
 	uint16_t maxValue = 				210;
 	uint16_t minValue = 				40;
-#elsif GAS
+#elif defined GAS
 	#define MY_NODE_ID 102									// Gas Node ID
 	#define SKETCH_NAME					"Gas Meter"			// Optional child sensor name
 	#define PULSE_FACTOR				100					// Number of blinks per m3 of your meter (One rotation/liter)
@@ -98,10 +99,10 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 	uint16_t minValue = 				486;
 #else //TEST
 	#define MY_NODE_ID 223									// Test Node ID
-	#define SKETCH_NAME					"-TEST- Meter"			// Optional child sensor name
+	#define SKETCH_NAME					"-TEST- Meter Node"	// Optional child sensor name
 	#define PULSE_FACTOR				100					// Number of blinks per m3 of your meter (One rotation/liter)
 	#define MAX_FLOW					40					// Max flow (l/min) value to report. This filters outliers.
-	#define CHILD_NAME					"-Test-Child-"			// Optional child sensor name
+	#define CHILD_NAME					"-Test- Child"			// Optional child sensor name
 	uint16_t highThreshold =			500;				// higher threshold for analog readings
 	uint16_t lowThreshold =				494;				// lower threshold for analog readings
 	uint16_t maxValue = 				516;
@@ -113,33 +114,26 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 
 
 // Node and sketch information
-
 #define CHILD_ID						1					// Id of the sensor child
 #define CHILD_ID_ANALOG					2					//ID für Threshold Werte
 #define CHILD_ID_DEBUG					3					// Debug setzen und lesen
-
 
 // Input and output definitions
 #define ANALOG_INPUT_SENSOR				A0					// The analog input you attached your sensor. 
 #define UPLINK_LED						5
 #define PULSE_LED						6
-// #define	PULSE_LED_BLINK_TIME			500
 #define SEND_WAIT						10
 #define REQUEST_ACK						true
 
 // Sonstige Werte
 #define HEARTBEAT_INTERVAL				30000				//später alle 5 Minuten, zum Test alle 30 Sekunden
 #define INTERNALS_UPDATE_INTERVAL		3600000				//jede Stunde Update senden (Debug, Threshold usw)
-// #define SEND_FREQUENCY					20000
-// #define CHECK_UPLINK_FREQUENCY			30000
-
-
+#define FLOW_TO_ZERO_TIME				120000				//120000
 
 #define EEPROM_HI_THRESHOLD				0 					//16 Bit
 #define EEPROM_LO_THRESHOLD				2					//16 Bit
 #define EEPROM_DEBUGLEVEL				4					//8  Bit
 #define EEPROM_METER_VALUE				5					//32 Bit
-
 
 
 #ifdef SER_DEBUG
@@ -166,6 +160,7 @@ MyMessage debugValue	(CHILD_ID_DEBUG, V_VAR1);
 MyMessage thValueMin	(CHILD_ID_DEBUG, V_VAR2);
 MyMessage thValueMax	(CHILD_ID_DEBUG, V_VAR3);
 MyMessage hwTime		(CHILD_ID_DEBUG, V_VAR4);
+MyMessage Uplink		(CHILD_ID_DEBUG, V_VAR5);
 
 
 volatile uint32_t pulseCount = 0;
@@ -193,8 +188,6 @@ float flow = 0;
 
 void preHwInit() 
 {
-
-	
 // #ifdef SER_DEBUG
 	// Serial.begin(115200);
 // #endif
@@ -207,7 +200,6 @@ void preHwInit()
 
 void before() 
 {
-
 	// DEBUG_PRINTLN("before: ");
 	// DEBUG_PRINTLN("writeEeprom32: ");
 	// writeEeprom32(EEPROM_METER_VALUE, 338849);
@@ -226,8 +218,8 @@ void setup()
 	hwPinMode(PULSE_LED, OUTPUT);
 	
 	uint32_t MeterValue = readEeprom32(EEPROM_METER_VALUE);
-	DEBUG_PRINT("readEeprom32: EEPROM_METER_VALUE ");
-	DEBUG_PRINTLN(MeterValue);
+	// DEBUG_PRINT("readEeprom32: EEPROM_METER_VALUE ");
+	// DEBUG_PRINTLN(MeterValue);
 	pulseCount = MeterValue;
 	oldPulseCount = MeterValue;
 	volume = (float)pulseCount / ((float)PULSE_FACTOR);
@@ -251,19 +243,26 @@ void setup()
 	
 	uint16_t high = readEeprom16(EEPROM_HI_THRESHOLD);//16 Bit , weil 1024 nicht in 8 Bit reinpasst
 	uint16_t low = readEeprom16(EEPROM_LO_THRESHOLD); //16 Bit
-	if (high == 0 || high == 65535 || low == 0 || low == 65535) //frisches EEPROM mit neuen Standardwerten beschreiben und highThreshold und lowThreshold belassen wie im Programmkopf gesetzt
+	if (high == 0 || high == 65535) //frisches EEPROM mit neuen Standardwerten beschreiben und highThreshold belassen wie im Programmkopf gesetzt
 	{
 		writeEeprom16(EEPROM_HI_THRESHOLD, highThreshold);
-		writeEeprom16(EEPROM_LO_THRESHOLD, lowThreshold);
-		// debugMessage("High threshold set to standard value: ", String(highThreshold));
-		// debugMessage("Low threshold set to standard value: ", String(lowThreshold));
+		// debugMessage("highThreshold to EEPROM: ", String(highThreshold));
 	}
 	else 
 	{
 		highThreshold = high;
+		// debugMessage("highThreshold from EEPROM: ", String(highThreshold));
+	}
+	
+	if (low == 0 || low == 65535) //frisches EEPROM mit neuen Standardwerten beschreiben und lowThreshold belassen wie im Programmkopf gesetzt
+	{
+		writeEeprom16(EEPROM_LO_THRESHOLD, lowThreshold);
+		// debugMessage("lowThreshold to EEPROM: ", String(lowThreshold));
+	}
+	else 
+	{
 		lowThreshold = low;
-		// debugMessage("High threshold fetched from EEPROM, value: ", String(highThreshold));
-		// debugMessage("Low threshold fetched from EEPROM, value: ", String(lowThreshold));
+		// debugMessage("lowThreshold from EEPROM: ", String(lowThreshold));
 	}
 	midValue=uint16_t((lowThreshold+highThreshold)/2);	// Mittelwert von Threshold Max und Min (Soll minValue und maxValue begrenzen)
 	// debugMessage("midValue: ", String(midValue));
@@ -272,8 +271,9 @@ void setup()
 
 
 void presentation()  {
+	DEBUG_PRINTLN(SKETCH_NAME);
 	// Send the sketch version information to the gateway and Controller
-	sendSketchInfo(SKETCH_NAME, SKETCH_VER);    
+	sendSketchInfo(SKETCH_NAME, SKETCH_VER);
 #ifdef WATER	
 	present(CHILD_ID, S_WATER, CHILD_NAME, "Counter Child");       
 #else
@@ -285,8 +285,12 @@ void presentation()  {
 
 void loop()
 {
+	// Check the analog sensor values an change state when thresholds are passed
+	checkThreshold();
+	
 	uint32_t currentTime = millis();
 	uint32_t TimeSinceHeartBeat = currentTime - lastHeartBeat;
+	uint32_t TimeSinceLastPulse = currentTime - lastPulseTime;
 	
 	// if (TransportUplink)
 	// {
@@ -301,26 +305,40 @@ void loop()
 	{
 		if (firstLoop)
 		{
-			DEBUG_PRINTLN("firstLoop");
+			DEBUG_PRINTLN("firstLoop Heartbeat");
 		}
-		DEBUG_PRINT("TimeSinceHeartBeat: ");
-		DEBUG_PRINTLN(TimeSinceHeartBeat);
-		DEBUG_PRINTLN("transportCheckUplink");
-		TransportUplink = transportCheckUplink();
-		DEBUG_PRINT("Result: ");
-		DEBUG_PRINTLN(TransportUplink);
-
+		// DEBUG_PRINT("thLow ");
+		// DEBUG_PRINT(lowThreshold);
+		// DEBUG_PRINT(" thHigh ");
+		// DEBUG_PRINTLN(highThreshold);	
+		
+		// wait(SEND_WAIT);
+		// DEBUG_PRINT("TimeSinceHeartBeat: ");
+		// DEBUG_PRINTLN(TimeSinceHeartBeat);
+		// DEBUG_PRINTLN("transportCheckUplink");
+		// TransportUplink = transportCheckUplink();
+		// DEBUG_PRINT("Result: ");
+		// DEBUG_PRINTLN(TransportUplink);
+		// wait(SEND_WAIT);
 
 		// DEBUG_PRINT("firstLoop");
 		// DEBUG_PRINTLN(firstLoop);
 		// DEBUG_PRINT("informGW");
 		// DEBUG_PRINTLN(informGW);
 		// sendHeartbeat();
-		send(hwTime.set(currentTime),REQUEST_ACK);
+		
+
+		TransportUplink = send(hwTime.set(currentTime), REQUEST_ACK);
+		DEBUG_PRINT("Uplink Check: ");
+		DEBUG_PRINTLN(TransportUplink);	
 		wait(SEND_WAIT);
+		send(Uplink.set(TransportUplink));		
+
+		
 		lastHeartBeat = currentTime;
 		if (informGW)
 		{
+			DEBUG_PRINTLN("informGW");
 			informGW = false;
 			send(lastCounterMsg.set(pulseCount),REQUEST_ACK);
 			wait(SEND_WAIT);
@@ -329,14 +347,24 @@ void loop()
 			send(thValueMax.set(highThreshold),REQUEST_ACK);
 			wait(SEND_WAIT);
 		}
-
-		
 	}
 	
 	//Serviceroutine, welche alle 60 Minuten läuft um Werte für FHEM Grafik aktuell zu halten
 	if ((currentTime - lastInternalsUpdate > (uint32_t)INTERNALS_UPDATE_INTERVAL) || firstLoop)
 	{
-		firstLoop = false;
+		if (firstLoop)
+		{
+			// DEBUG_PRINTLN("firstLoop IT");
+			firstLoop = false;
+		}
+		else
+		{
+			// DEBUG_PRINTLN("IT: Write EEPROM_METER_VALUE");
+			writeEeprom32(EEPROM_METER_VALUE, pulseCount);	
+		}
+		
+		// DEBUG_PRINTLN("IT: update");
+		
 		//Min und Max etwas Näher an den Durchschnitt heranziehen, gibt es auch bei der Flowberechnung
 		if (minValue < (midValue - 4 ))
 		{
@@ -347,10 +375,7 @@ void loop()
 			maxValue--;
 		}
 		
-		if (!firstLoop)
-		{
-			writeEeprom32(EEPROM_METER_VALUE, pulseCount);
-		}
+
 		
 		send(debugValue.set(debugLevel),REQUEST_ACK);
 		wait(SEND_WAIT);
@@ -375,26 +400,26 @@ void loop()
 		
 		lastInternalsUpdate = currentTime;
 	}
-	// Check the analog sensor values an change state when thresholds are passed
-	checkThreshold();
+
 
 	// Only send values at a maximum frequency
 	// if (currentTime - lastSend > (uint32_t)SEND_FREQUENCY) 
 	// {
 		// lastSend = currentTime;
 
-	if (flow != oldflow) {
+	if (abs(flow - oldflow) > 0.1)//float lässt sich schwer mit != vergleichen
+	{
 		oldflow = flow;
 		// debugMessage("l/min:", String(flow));
 
 		if (flow < ((float)MAX_FLOW)) 
 		{
 			// Send flow value to gw
-			send(flowMsg.set(flow, 2));
+			send(flowMsg.set(flow, 2),REQUEST_ACK);
 			wait(SEND_WAIT);
-			send(MsgMinValue.set(minValue));
+			send(MsgMinValue.set(minValue),REQUEST_ACK);
 			wait(SEND_WAIT);
-			send(MsgMaxValue.set(maxValue));
+			send(MsgMaxValue.set(maxValue),REQUEST_ACK);
 			wait(SEND_WAIT);
 			//Min und Max etwas Näher an den Durchschnitt heranziehen
 			if (minValue < (midValue - 4 ))
@@ -408,12 +433,25 @@ void loop()
 			// debugMessage("MinNeu:", String(minValue));
 			// debugMessage("MaxNeu:", String(maxValue));
 		}
+		else
+		{
+			DEBUG_PRINT("Flow to high: ");
+			DEBUG_PRINTLN(flow);	
+		}
 	}
 
 	// No Pulse count received in 2min 
-	if (currentTime - lastPulseTime > (uint32_t)120000) 
+	if (TimeSinceLastPulse > (uint32_t)FLOW_TO_ZERO_TIME && flow != 0) 
 	{
 		flow = 0;
+		DEBUG_PRINTLN("set flow 0: TSLP");
+		DEBUG_PRINTLN(TimeSinceLastPulse);
+		DEBUG_PRINT("oldflow ");
+		DEBUG_PRINT(oldflow);
+		DEBUG_PRINT("flow ");
+		DEBUG_PRINTLN(flow);
+		
+
 	}
 
 	// Pulse count has changed
@@ -422,10 +460,10 @@ void loop()
 		digitalWrite(PULSE_LED,HIGH);
 		oldPulseCount = pulseCount;
 		// debugMessage("pulsecount: ", String(pulseCount));
-		send(lastCounterMsg.set(pulseCount));
+		send(lastCounterMsg.set(pulseCount),REQUEST_ACK);
 		volume = (float)pulseCount / ((float)PULSE_FACTOR);
 		// debugMessage("volume: ", String(volume, 3));
-		send(volumeMsg.set(volume, 3));
+		send(volumeMsg.set(volume, 3),REQUEST_ACK);
 	}
 	else
 	{
@@ -447,7 +485,27 @@ void debugMessage(String header, String content)
 void receive(const MyMessage &message)
 {
 	// debugMessage("Receiver: ", String(message.sensor));
-	if (message.sensor == CHILD_ID_ANALOG)
+	//myreadS: 0 Last: 50 dest: 223 Sen: 3 Cmd: 1 type: 27 PLT: 5 Len: 4 got Ack from: 3
+
+	// DEBUG_PRINT("myread");
+	// DEBUG_PRINT("S: ");
+	// DEBUG_PRINT(message.sender);
+	// DEBUG_PRINT(" Last: ");
+	// DEBUG_PRINT(message.last);
+	// DEBUG_PRINT(" dest: ");
+	// DEBUG_PRINT(message.destination);
+	// DEBUG_PRINT(" Sen: ");
+	// DEBUG_PRINT(message.sensor);
+	// DEBUG_PRINT(" Cmd: ");
+	// DEBUG_PRINT(mGetCommand(message));
+	// DEBUG_PRINT(" type: ");
+	// DEBUG_PRINT(message.type);	
+	// DEBUG_PRINT(" PLT: ");
+	// DEBUG_PRINT(mGetPayloadType(message));
+	// DEBUG_PRINT(" Len: ");
+	// DEBUG_PRINTLN(mGetLength(message));
+
+	if ((message.sensor == CHILD_ID_ANALOG) && !mGetAck(message))
 	{
 		switch (message.type) 
 		{
@@ -456,6 +514,7 @@ void receive(const MyMessage &message)
 				// unsigned long gwPulseCount = message.getULong();
 				// pulseCount = gwPulseCount;
 				pulseCount = message.getULong();
+				DEBUG_PRINTLN("new pulseCount: set flow 0");
 				flow = oldflow = 0;
 				// debugMessage("Received last pulse count from gw: ", String(pulseCount));
 				// pcReceived = true;
@@ -464,7 +523,7 @@ void receive(const MyMessage &message)
 			}
 		}
 	}
-	else if (message.sensor == CHILD_ID_DEBUG)
+	else if ((message.sensor == CHILD_ID_DEBUG) && !mGetAck(message))
 	{	
 		switch (message.type) 
 		{
@@ -481,6 +540,7 @@ void receive(const MyMessage &message)
 				writeEeprom16(EEPROM_LO_THRESHOLD, lowThreshold); //16 Bit
 				// debugMessage("Received new low threshold from gw: ", String(lowThreshold));
 				informGW = true;
+				midValue=uint16_t((lowThreshold+highThreshold)/2);
 			}
 			break;
 			case V_VAR3: 
@@ -489,22 +549,27 @@ void receive(const MyMessage &message)
 				writeEeprom16(EEPROM_HI_THRESHOLD, highThreshold); // 16 Bit
 				// debugMessage("Received new high threshold from gw: ", String(highThreshold));
 				informGW = true;
+				midValue=uint16_t((lowThreshold+highThreshold)/2);
 			}
 			break;
 		}
   	}
 	else
 	{
+		if (mGetAck(message))
+		{
+			// DEBUG_PRINT("got Ack from: ");
+			// DEBUG_PRINTLN(message.sensor);
+		}
 		// debugMessage("Received invalid message from gw! ", "");
 	}
-    midValue=uint16_t((lowThreshold+highThreshold)/2);
+    
 
 }
 
 
 void newPulse()
 {
-	DEBUG_PRINTLN("newPulse");
 	uint32_t newPulseTime = millis();
 	uint32_t interval = newPulseTime - lastPulseTime;
 	if (debugLevel > 0)
@@ -519,6 +584,11 @@ void newPulse()
 	lastPulseTime = newPulseTime;
 
 	pulseCount++;
+	DEBUG_PRINT("newPulse: ");
+	DEBUG_PRINT(pulseCount);
+	DEBUG_PRINT(" flow: ");
+	DEBUG_PRINTLN(flow);
+	
 }
 
 void checkThreshold() {
