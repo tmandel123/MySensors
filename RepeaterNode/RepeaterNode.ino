@@ -1,4 +1,4 @@
-#define MY_DEBUG
+// #define MY_DEBUG
 
 // Enable and select radio type attached
 #define MY_RADIO_NRF24
@@ -11,7 +11,7 @@
 
 // Enabled repeater feature for this node
 #define MY_REPEATER_FEATURE
-#define HEARTBEAT_INTERVAL        	300000        //später alle 5 Minuten, zum Test alle 30 Sekunden
+#define HEARTBEAT_INTERVAL        	60000        //später alle 5 Minuten, zum Test alle 30 Sekunden
 #define CHILD_ID_TEXT				0
 
 
@@ -31,7 +31,7 @@ void presentation()
 {
 	present(CHILD_ID_TEXT, S_INFO, "Info Child");
 	//Send the sensor node sketch version information to the gateway
-	sendSketchInfo("Repeater Node", "1.2");
+	sendSketchInfo("Repeater Node", "1.2-001");
 	
 }
 
@@ -40,8 +40,8 @@ void loop()
 	unsigned long currentTime = millis();
 	if (currentTime - lastHeartBeat > (unsigned long)HEARTBEAT_INTERVAL)
 	{
-		sendHeartbeat();  
-		send(hwTime.set(currentTime));
+		// sendHeartbeat();  
+		send(hwTime.set(currentTime),true);
 		lastHeartBeat = currentTime;
 		Serial.println("HEARTBEAT_INTERVAL erreicht");
 
