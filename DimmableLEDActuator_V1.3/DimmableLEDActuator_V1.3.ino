@@ -17,10 +17,10 @@
 // Enable and select radio type attached
 #define MY_RADIO_NRF24
 
-#define MY_NODE_ID 210
+#define MY_NODE_ID 110
 // #define MY_PARENT_NODE_ID 50
 // #define MY_PARENT_NODE_IS_STATIC
-#define MY_RF24_CHANNEL 1									// Nach Testphase deaktivieren, damit Kanal 76 aktiv wird
+#define MY_RF24_CHANNEL 96									// Nach Testphase deaktivieren, damit Kanal 76 aktiv wird
 
 
 #define MY_RF24_PA_LEVEL RF24_PA_LOW
