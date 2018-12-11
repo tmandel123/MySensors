@@ -58,7 +58,7 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 
 */
 
-#define SKETCH_VER						"2.4.1-013"				// Sketch version
+#define SKETCH_VER						"2.4.1-014"				// Sketch version
 
 #define MY_RADIO_NRF24
 
@@ -126,7 +126,7 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 #define REQUEST_ACK						true
 
 // Sonstige Werte
-#define HEARTBEAT_INTERVAL				30000				//später alle 5 Minuten, zum Test alle 30 Sekunden
+#define HEARTBEAT_INTERVAL				300000				//später alle 5 Minuten, zum Test alle 30 Sekunden
 #define INTERNALS_UPDATE_INTERVAL		3600000				//jede Stunde Update senden (Debug, Threshold usw)
 #define FLOW_TO_ZERO_TIME				120000				//120000
 
@@ -303,10 +303,10 @@ void loop()
 	
 	if (((TimeSinceHeartBeat > (uint32_t)HEARTBEAT_INTERVAL)) || firstLoop || informGW)
 	{
-		if (firstLoop)
-		{
-			DEBUG_PRINTLN("firstLoop Heartbeat");
-		}
+		// if (firstLoop)
+		// {
+			// DEBUG_PRINTLN("firstLoop Heartbeat");
+		// }
 		// DEBUG_PRINT("thLow ");
 		// DEBUG_PRINT(lowThreshold);
 		// DEBUG_PRINT(" thHigh ");
@@ -415,11 +415,11 @@ void loop()
 		if (flow < ((float)MAX_FLOW)) 
 		{
 			// Send flow value to gw
-			send(flowMsg.set(flow, 2),REQUEST_ACK);
+			send(flowMsg.set(flow, 2));
 			wait(SEND_WAIT);
-			send(MsgMinValue.set(minValue),REQUEST_ACK);
+			send(MsgMinValue.set(minValue));
 			wait(SEND_WAIT);
-			send(MsgMaxValue.set(maxValue),REQUEST_ACK);
+			send(MsgMaxValue.set(maxValue));
 			wait(SEND_WAIT);
 			//Min und Max etwas Näher an den Durchschnitt heranziehen
 			if (minValue < (midValue - 4 ))
@@ -460,10 +460,10 @@ void loop()
 		digitalWrite(PULSE_LED,HIGH);
 		oldPulseCount = pulseCount;
 		// debugMessage("pulsecount: ", String(pulseCount));
-		send(lastCounterMsg.set(pulseCount),REQUEST_ACK);
+		send(lastCounterMsg.set(pulseCount));
 		volume = (float)pulseCount / ((float)PULSE_FACTOR);
 		// debugMessage("volume: ", String(volume, 3));
-		send(volumeMsg.set(volume, 3),REQUEST_ACK);
+		send(volumeMsg.set(volume, 3));
 	}
 	else
 	{
