@@ -7,13 +7,13 @@
 
 /*
 
-C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino:80:18: warning: ISO C++ forbids converting a string constant to 'char*' [-Wwrite-strings]
+C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino:133:18: warning: ISO C++ forbids converting a string constant to 'char*' [-Wwrite-strings]
 
  char* charAddr = "012345678901234567890123";
 
                   ^
 
-C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino:81:19: warning: ISO C++ forbids converting a string constant to 'char*' [-Wwrite-strings]
+C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino:134:19: warning: ISO C++ forbids converting a string constant to 'char*' [-Wwrite-strings]
 
  char* charAddr8 = "01234567";
 
@@ -21,37 +21,37 @@ C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino:8
 
 C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino: In function 'void loop()':
 
-C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino:210:75: warning: invalid conversion from 'volatile char*' to 'byte* {aka unsigned char*}' [-fpermissive]
+C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino:263:75: warning: invalid conversion from 'volatile char*' to 'byte* {aka unsigned char*}' [-fpermissive]
 
      send(msgOwName.setSensor(CHILD_ID_Temp+i).set(ArrayToChar8(cThermoName)));
 
                                                                            ^
 
-C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino:387:8: note:   initializing argument 1 of 'char* ArrayToChar8(byte*)'
+C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino:440:8: note:   initializing argument 1 of 'char* ArrayToChar8(byte*)'
 
  char* ArrayToChar8(byte* data)
 
         ^
 
-C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino:218:56: warning: invalid conversion from 'volatile char*' to 'byte* {aka unsigned char*}' [-fpermissive]
+C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino:271:56: warning: invalid conversion from 'volatile char*' to 'byte* {aka unsigned char*}' [-fpermissive]
 
   send(msgDebugThermoKnown.set(ArrayToChar8(bThermoKnown)));
 
                                                         ^
 
-C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino:387:8: note:   initializing argument 1 of 'char* ArrayToChar8(byte*)'
+C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino:440:8: note:   initializing argument 1 of 'char* ArrayToChar8(byte*)'
 
  char* ArrayToChar8(byte* data)
 
         ^
 
-C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino:220:64: warning: invalid conversion from 'volatile char*' to 'byte* {aka unsigned char*}' [-fpermissive]
+C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino:273:64: warning: invalid conversion from 'volatile char*' to 'byte* {aka unsigned char*}' [-fpermissive]
 
   debugMessage("bThermoKnown: ",String(ArrayToChar8(bThermoKnown)));
 
                                                                 ^
 
-C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino:387:8: note:   initializing argument 1 of 'char* ArrayToChar8(byte*)'
+C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino:440:8: note:   initializing argument 1 of 'char* ArrayToChar8(byte*)'
 
  char* ArrayToChar8(byte* data)
 
@@ -82,7 +82,7 @@ C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino:3
 #define BATTERY_SENSE_PIN A0
 
 // Node and sketch information
-#define SKETCH_VER            		"1.6.03"        // Sketch version
+#define SKETCH_VER            		"1.6-001"        // Sketch version
 #define SKETCH_NAME           		"OneWireMasterBat"   // Optional child sensor name
 #define CHILD_ID_BAT_ANLG       		0     	//ID für Batterie Werte an A0 --> Wird angewendet, wenn 3,3V StepUp Regler am Arduino angeschlossen ist. 
 												//Batterie ohne Spannungsteiler direkt an A0 anschließen und analogReference(DEFAULT);(VREF bringt hier immer den gleichen Wert)
@@ -91,7 +91,7 @@ C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino:3
 #define CHILD_ID_Temp         		3         	// erste ID für Temperatur Werte
 #define OW_RESOLUTION				11
 
-#define MAX_ATTACHED_DS18B20      	8
+#define MAX_ATTACHED_DS18B20      	8			//mehr als 8 funktioniert nicht mit den vorhandenen Methoden
 
 #define EEPROM_DEVICE_NAME_LENGTH   8
 #define EEPROM_DEVICE_ID_LENGTH     8
@@ -324,7 +324,7 @@ void loop()//ToDo: getResolution je Sensor-Adresse, wenn anders als festgeletzte
 	// get the battery Voltage
 	batteryBatAnalogValue = analogRead(BATTERY_SENSE_PIN);
 	batteryBatAnalogValue=constrain(batteryBatAnalogValue, BAT_ANALOG_MIN, BAT_ANALOG_MAX);
-	batteryPcnt = map(batteryBatAnalogValue, BAT_ANALOG_MIN, BAT_ANALOG_MAX, 0, 100); //zwischen 100% und 60% bewegs sic die Nutzungsmöglichkeit der Batterie. Darunter bringt die Spannung zusammen
+	batteryPcnt = map(batteryBatAnalogValue, BAT_ANALOG_MIN, BAT_ANALOG_MAX, 0, 100); //zwischen 100% und 60% bewegt sich die Nutzungsmöglichkeit der Batterie. Darunter bricht die Spannung zusammen
 	batteryVoltage  = batteryBatAnalogValue * 0.004594330400782;
 	sendBatteryLevel(batteryPcnt);
 	send(BatAnalogValue.set(batteryVoltage,3));
