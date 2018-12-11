@@ -82,34 +82,34 @@ C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino:4
 #define BATTERY_SENSE_PIN A0
 
 // Node and sketch information
-#define SKETCH_VER            		"1.6-001"        // Sketch version
-#define SKETCH_NAME           		"OneWireMasterBat"   // Optional child sensor name
-#define CHILD_ID_BAT_ANLG       		0     	//ID für Batterie Werte an A0 --> Wird angewendet, wenn 3,3V StepUp Regler am Arduino angeschlossen ist. 
-												//Batterie ohne Spannungsteiler direkt an A0 anschließen und analogReference(DEFAULT);(VREF bringt hier immer den gleichen Wert)
-#define CHILD_ID_BAT_VREF       	1         	//ID für Batterie Werte Intern per VRef --> Bei Betrieb mit 2-3 Batterien an Arduino mit abgelöteten Spannungsregler
-#define CHILD_ID_DEBUG          	2         	// Debug setzen und lesen
-#define CHILD_ID_Temp         		3         	// erste ID für Temperatur Werte
-#define OW_RESOLUTION				11
+#define SKETCH_VER            			"1.6-001"        			// Sketch version
+#define SKETCH_NAME           			"OneWireMasterBat"   		// Optional child sensor name
+#define CHILD_ID_BAT_ANLG       		0							//ID für Batterie Werte an A0 --> Wird angewendet, wenn 3,3V StepUp Regler am Arduino angeschlossen ist. 
+																	//Batterie ohne Spannungsteiler direkt an A0 anschließen und analogReference(DEFAULT);(VREF bringt hier immer den gleichen Wert)
+#define CHILD_ID_BAT_VREF       		1         					//ID für Batterie Werte Intern per VRef --> Bei Betrieb mit 2-3 Batterien an Arduino mit abgelöteten Spannungsregler
+#define CHILD_ID_DEBUG          		2							// Debug setzen und lesen
+#define CHILD_ID_Temp         			3         					// erste ID für Temperatur Werte
+#define OW_RESOLUTION					11
 
-#define MAX_ATTACHED_DS18B20      	8			//mehr als 8 funktioniert nicht mit den vorhandenen Methoden
+#define MAX_ATTACHED_DS18B20      		8							//mehr als 8 funktioniert nicht mit den vorhandenen Methoden
 
-#define EEPROM_DEVICE_NAME_LENGTH   8
-#define EEPROM_DEVICE_ID_LENGTH     8
-#define EEPROM_DEVICE_CNT_STEP		(EEPROM_DEVICE_NAME_LENGTH+EEPROM_DEVICE_ID_LENGTH) //Klammer könnte evtl. weg
+#define EEPROM_DEVICE_NAME_LENGTH   	8
+#define EEPROM_DEVICE_ID_LENGTH     	8
+#define EEPROM_DEVICE_CNT_STEP			(EEPROM_DEVICE_NAME_LENGTH+EEPROM_DEVICE_ID_LENGTH) //Klammer könnte evtl. weg
 //Werte für 
-#define EEPROM_DEVICE_DEBUG_Level   1     // DebugLevel, die nächsten 7 Bytes sind für Debug reserviert
-#define EEPROM_DEVICE_DEBUG_7 		7
+#define EEPROM_DEVICE_DEBUG_Level   	1     // DebugLevel, die nächsten 7 Bytes sind für Debug reserviert
+#define EEPROM_DEVICE_DEBUG_7 			7
 
-#define EEPROM_DEVICE_TEMP_ID_START EEPROM_DEVICE_DEBUG_7+1
-#define EEPROM_DEVICE_TEMP_NAME_START EEPROM_DEVICE_TEMP_ID_START+EEPROM_DEVICE_ID_LENGTH
+#define EEPROM_DEVICE_TEMP_ID_START		EEPROM_DEVICE_DEBUG_7+1
+#define EEPROM_DEVICE_TEMP_NAME_START	EEPROM_DEVICE_TEMP_ID_START+EEPROM_DEVICE_ID_LENGTH
 
-#define MAX_DEBUG_LEVEL         	4
+#define MAX_DEBUG_LEVEL         		4
 
 #define	WITH_BATTERIE
-#define	BAT_VREF_MAX_VOLTATE		3000
-#define	BAT_VREF_MIN_VOLTATE		1800
+#define	BAT_VREF_MAX_VOLTATE			3000
+#define	BAT_VREF_MIN_VOLTATE			1800
 
-#define BAT_MESSURED				2980
+#define BAT_MESSURED					2980
 #define BAT_VREF_CORRECTION_VALUE		(float)BAT_VREF_MAX_VOLTATE/(float)BAT_MESSURED
 
 
