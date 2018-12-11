@@ -5,29 +5,42 @@
 #define MY_NODE_ID 210
 #define MY_PARENT_NODE_ID 50
 
-#define MY_RF24_CHANNEL 1									// Nach Testphase deaktivieren, damit Kanal 76 aktiv wird
+// #define MY_RF24_CHANNEL 96									// Nach Testphase deaktivieren, damit Kanal 76 aktiv wird
 
 #define NODE_TXT "Ack Test Node"
 #define MY_INDICATION_HANDLER
 #define MY_RF24_PA_LEVEL RF24_PA_LOW
 #define MY_TRANSPORT_WAIT_READY_MS (1000ul)
 
+#define SER_DEBUG
 
 #include <MySensors.h>
 
 #define SN "Ack-Tester"
-#define SV "1.0-100"
+#define SV "1.0-001"
 
-#define LED_PIN 3      // Arduino pin attached to MOSFET Gate pin
+#define LED_PIN 						6											// Arduino pin attached to MOSFET Gate pin
+#define CHILD_ID_TEXT					0
+#define SEND_WAIT						10
+#define REQUEST_ACK						true
 
+#ifdef SER_DEBUG
+#define DEBUG_SERIAL(x) Serial.begin(x)
+#define DEBUG_PRINT(x) Serial.print(x)
+#define DEBUG_PRINTLN(x) Serial.println(x)
+#else
+#define DEBUG_SERIAL(x)
+#define DEBUG_PRINT(x) 
+#define DEBUG_PRINTLN(x) 
+#endif
 
 #define HEARTBEAT_INTERVAL	2000        //später alle 5 Minuten, zum Test alle 30 Sekunden
 unsigned long lastHeartBeat = 0;
 unsigned int counter=0;
+bool TransportUplink = true;
 
-
-MyMessage dimmerMsg(0, V_DIMMER);
-
+// MyMessage dimmerMsg(0, V_DIMMER);
+MyMessage hwTime		(CHILD_ID_TEXT, V_TEXT);
 
 
 void preHwInit()
@@ -64,7 +77,8 @@ void setup()
 void presentation()
 {
 	// Register the LED Dimmable Light with the gateway
-	present( 0, S_DIMMER, NODE_TXT );
+	present(CHILD_ID_TEXT, S_INFO, NODE_TXT);
+	// present( 0, S_DIMMER, NODE_TXT );
 	sendSketchInfo(SN, SV);
 	LED_Blink(1,2);//Anzahl, Geschwindigkeit
 }
@@ -75,30 +89,18 @@ void presentation()
 void loop()
 {
 	unsigned long currentTime = millis();
-	if (currentTime - lastHeartBeat > (unsigned long)HEARTBEAT_INTERVAL)
-	{
-		// debugMessage("sendHeartbeat", String(currentTime));
-		// sendHeartbeat();  
-		// send( dimmerMsg.set(currentLevel) );
-		lastHeartBeat = currentTime;
-		// Serial.println("sendHeartbeat ");
-		send( dimmerMsg.set(counter), true );
-		counter++;
-		if (counter > 100)
-		{
-			counter=0;
-		}
-		if (transportCheckUplink() == true)
-		{
-			Serial.println(F("transportCheckUplink = true"));
-		}
-	}
 	
-	while (transportCheckUplink() == false)
+	TransportUplink = send(hwTime.set(currentTime), REQUEST_ACK);
+	// DEBUG_PRINT("Uplink Check: ");
+	// DEBUG_PRINTLN(TransportUplink);	
+	wait(SEND_WAIT);
+	wait(100);
+
+	if (TransportUplink == false)
 	{
 		Serial.println(F("transportCheckUplink = false"));
 		LED_Blink(5,1);//Anzahl, Geschwindigkeit();
-		LED_Blink(3,2);//Anzahl, Geschwindigkeit();
+		// LED_Blink(3,2);//Anzahl, Geschwindigkeit();
 	}
 
 }
@@ -110,13 +112,13 @@ void indication(indication_t ind)
   switch(ind)
   {
     case INDICATION_TX: 
-		Serial.println(F("TX"));
-		LED_Blink(1,1);//Anzahl, Geschwindigkeit
+		// Serial.println(F("TX"));
+		// LED_Blink(1,1);//Anzahl, Geschwindigkeit
 		break;
     case INDICATION_ERR_FIND_PARENT:          	Serial.println(F("ERR_FIND_PARENT")); break;
     case INDICATION_GOT_PARENT:          		Serial.println(F("GOT_PARENT")); break;
     case INDICATION_ERR_HW_INIT: 				Serial.println(F("ERR_HW_INIT"));
-		LED_Blink(3,1);//Anzahl, Geschwindigkeit
+		LED_Blink(10,1);//Anzahl, Geschwindigkeit
 		break;
     case INDICATION_ERR_TX:
 		Serial.println(F("ERR_TX"));
