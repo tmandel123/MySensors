@@ -38,7 +38,7 @@
 
 // Enable debug prints to serial monitor
 // #define MY_DEBUG
-#define MY_RADIO_NRF24
+#define MY_RADIO_RF24
 #define MY_RF24_CHANNEL 96
 
 // #define MY_RF24_PA_LEVEL RF24_PA_MAX //liefert fast nur NACK
@@ -61,17 +61,17 @@ RF24_PA_MAX = 0dBm
 #endif
 
 // Enable inclusion mode
-#define MY_INCLUSION_MODE_FEATURE
+// #define MY_INCLUSION_MODE_FEATURE
 // Enable Inclusion mode button on gateway
-//#define MY_INCLUSION_BUTTON_FEATURE
+#define MY_INCLUSION_BUTTON_FEATURE
 
 // Inverses behavior of inclusion button (if using external pullup)
 //#define MY_INCLUSION_BUTTON_EXTERNAL_PULLUP
 
 // Set inclusion mode duration (in seconds)
-#define MY_INCLUSION_MODE_DURATION 60
+// #define MY_INCLUSION_MODE_DURATION 60
 // Digital pin used for inclusion mode button
-//#define MY_INCLUSION_MODE_BUTTON_PIN  3
+#define MY_INCLUSION_MODE_BUTTON_PIN  3
 
 // Set blinking period
 #define MY_DEFAULT_LED_BLINK_PERIOD 300
@@ -99,5 +99,6 @@ void presentation()
 
 void loop()
 {
+	// delay(25);
 	// Send locally attached sensor data here
 }
