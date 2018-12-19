@@ -58,9 +58,8 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 
 */
 
-#define SKETCH_VER						"2.4.1-014"				// Sketch version
-
-#define MY_RADIO_NRF24
+#define SKETCH_VER						"2.4.1-015"				// Sketch version
+#define MY_RADIO_RF24
 
 // #define MY_DEBUG //muss vor MySensors.h stehen
 #define SER_DEBUG
@@ -122,7 +121,7 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 #define ANALOG_INPUT_SENSOR				A0					// The analog input you attached your sensor. 
 #define UPLINK_LED						5
 #define PULSE_LED						6
-#define SEND_WAIT						10
+#define SEND_WAIT						50
 #define REQUEST_ACK						true
 
 // Sonstige Werte
@@ -178,7 +177,7 @@ uint16_t sensorValue = 0;
 uint32_t oldPulseCount = 0;
 uint32_t lastSend = 0;
 uint32_t lastHeartBeat = 0;
-uint32_t lastInternalsUpdate = 0; 							//15 Sec nach Start Werte aktualisieren
+uint32_t lastInternalsUpdate = 0; 
 uint32_t lastPulseTime = 0;
 
 float ppl = ((float)PULSE_FACTOR) / 1000;					// Pulses per liter
@@ -188,6 +187,7 @@ float flow = 0;
 
 void preHwInit() 
 {
+	DEBUG_SERIAL(115200);
 // #ifdef SER_DEBUG
 	// Serial.begin(115200);
 // #endif
@@ -279,55 +279,29 @@ void presentation()  {
 #else
 	present(CHILD_ID, S_GAS, CHILD_NAME, "Counter Child"); 
 #endif
-	present(CHILD_ID_ANALOG, S_CUSTOM, "Analog Get Child");
+	present(CHILD_ID_ANALOG, S_CUSTOM, "Analog Set/Get Child");
 	present(CHILD_ID_DEBUG, S_CUSTOM, "Debug Set/Get Child");
 }
 
 void loop()
 {
-	// Check the analog sensor values an change state when thresholds are passed
 	checkThreshold();
 	
 	uint32_t currentTime = millis();
 	uint32_t TimeSinceHeartBeat = currentTime - lastHeartBeat;
 	uint32_t TimeSinceLastPulse = currentTime - lastPulseTime;
 	
-	// if (TransportUplink)
-	// {
-		// digitalWrite(UPLINK_LED,HIGH);
-	// }
-	// else
-	// {
-		// digitalWrite(UPLINK_LED,LOW);
-	// }
+	if (TransportUplink)
+	{
+		digitalWrite(UPLINK_LED,HIGH);
+	}
+	else
+	{
+		digitalWrite(UPLINK_LED,LOW);
+	}
 	
 	if (((TimeSinceHeartBeat > (uint32_t)HEARTBEAT_INTERVAL)) || firstLoop || informGW)
 	{
-		// if (firstLoop)
-		// {
-			// DEBUG_PRINTLN("firstLoop Heartbeat");
-		// }
-		// DEBUG_PRINT("thLow ");
-		// DEBUG_PRINT(lowThreshold);
-		// DEBUG_PRINT(" thHigh ");
-		// DEBUG_PRINTLN(highThreshold);	
-		
-		// wait(SEND_WAIT);
-		// DEBUG_PRINT("TimeSinceHeartBeat: ");
-		// DEBUG_PRINTLN(TimeSinceHeartBeat);
-		// DEBUG_PRINTLN("transportCheckUplink");
-		// TransportUplink = transportCheckUplink();
-		// DEBUG_PRINT("Result: ");
-		// DEBUG_PRINTLN(TransportUplink);
-		// wait(SEND_WAIT);
-
-		// DEBUG_PRINT("firstLoop");
-		// DEBUG_PRINTLN(firstLoop);
-		// DEBUG_PRINT("informGW");
-		// DEBUG_PRINTLN(informGW);
-		// sendHeartbeat();
-		
-
 		TransportUplink = send(hwTime.set(currentTime), REQUEST_ACK);
 		DEBUG_PRINT("Uplink Check: ");
 		DEBUG_PRINTLN(TransportUplink);	
@@ -336,7 +310,7 @@ void loop()
 
 		
 		lastHeartBeat = currentTime;
-		if (informGW)
+		if (informGW) //Aktualisierung nachdem bei receive neue Werte empfangen wurden
 		{
 			DEBUG_PRINTLN("informGW");
 			informGW = false;
@@ -402,11 +376,6 @@ void loop()
 	}
 
 
-	// Only send values at a maximum frequency
-	// if (currentTime - lastSend > (uint32_t)SEND_FREQUENCY) 
-	// {
-		// lastSend = currentTime;
-
 	if (abs(flow - oldflow) > 0.1)//float lässt sich schwer mit != vergleichen
 	{
 		oldflow = flow;
@@ -444,14 +413,12 @@ void loop()
 	if (TimeSinceLastPulse > (uint32_t)FLOW_TO_ZERO_TIME && flow != 0) 
 	{
 		flow = 0;
-		DEBUG_PRINTLN("set flow 0: TSLP");
-		DEBUG_PRINTLN(TimeSinceLastPulse);
-		DEBUG_PRINT("oldflow ");
-		DEBUG_PRINT(oldflow);
-		DEBUG_PRINT("flow ");
-		DEBUG_PRINTLN(flow);
-		
-
+		// DEBUG_PRINTLN("set flow 0: TSLP");
+		// DEBUG_PRINTLN(TimeSinceLastPulse);
+		// DEBUG_PRINT("oldflow ");
+		// DEBUG_PRINT(oldflow);
+		// DEBUG_PRINT("flow ");
+		// DEBUG_PRINTLN(flow);
 	}
 
 	// Pulse count has changed
@@ -474,13 +441,13 @@ void loop()
 
 }
 
-void debugMessage(String header, String content)
-{
+// void debugMessage(String header, String content)
+// {
 	// DEBUG code ------
-	Serial.print(header);
-	Serial.println(content);
+	// Serial.print(header);
+	// Serial.println(content);
 	// DEBUG code ------   
-}
+// }
 
 void receive(const MyMessage &message)
 {
@@ -688,36 +655,18 @@ int getAverage()
 
 void writeEeprom16(uint8_t pos, uint16_t value) 
 {
-  // function for saving the values to the internal EEPROM
-  // value = the value to be stored (as int)
-  // pos = the first byte position to store the value in
-  // only two bytes can be stored with this function (max 32.767)
   saveState(pos, ((uint16_t)value >> 8));
   pos++;
   saveState(pos, (value & 0xff));
-  // Serial.print("writeEeprom16: Pos ");
-  // Serial.print(pos);
-  // Serial.print("Value ");
-  // Serial.println(value);
 }
 
 uint16_t readEeprom16(uint8_t pos) 
 {
-  // function for reading the values from the internal EEPROM
-  // pos = the first byte position to read the value from 
-
   uint16_t hiByte;
   uint16_t loByte;
-
   hiByte = loadState(pos) << 8;
   pos++;
   loByte = loadState(pos);
-  
-  // Serial.print("readEeprom16: Pos ");
-  // Serial.print(pos);
-  // Serial.print(" Value ");
-  // Serial.println(hiByte | loByte);
-  
   return (hiByte | loByte);
 }
 
