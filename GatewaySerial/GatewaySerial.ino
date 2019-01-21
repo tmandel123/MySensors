@@ -37,9 +37,9 @@
 */
 
 // Enable debug prints to serial monitor
-// #define MY_DEBUG
+#define MY_DEBUG
 #define MY_RADIO_RF24
-#define MY_RF24_CHANNEL 96
+// #define MY_RF24_CHANNEL 96									// Für Testphase deaktivieren, damit Kanal 76 aktiv wird (Prod=96 Test=76)
 
 // #define MY_RF24_PA_LEVEL RF24_PA_MAX //liefert fast nur NACK
 // #define MY_RF24_PA_LEVEL RF24_PA_HIGH
@@ -74,7 +74,7 @@ RF24_PA_MAX = 0dBm
 #define MY_INCLUSION_MODE_BUTTON_PIN  3
 
 // Set blinking period
-#define MY_DEFAULT_LED_BLINK_PERIOD 300
+// #define MY_DEFAULT_LED_BLINK_PERIOD 300
 
 // Inverses the behavior of leds
 //#define MY_WITH_LEDS_BLINKING_INVERSE
