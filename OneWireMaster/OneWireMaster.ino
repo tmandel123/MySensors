@@ -180,7 +180,7 @@ MyMessage msgOwName				(CHILD_ID_Temp,  		V_VAR1);
 
 void preHwInit() 
 {
-	DEBUG_SERIAL(115200);
+	DEBUG_SERIAL(MY_BAUD_RATE);
 	DEBUG_PRINTLN("preHwInit: ");
 }
 
