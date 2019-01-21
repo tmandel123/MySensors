@@ -52,8 +52,11 @@ MyMessage hwTime		(CHILD_ID_TEXT, V_TEXT);
 
 void preHwInit()
 {
-	Serial.begin(115200);
-	Serial.println("preHwInit...");
+	
+	DEBUG_SERIAL(MY_BAUD_RATE);
+	DEBUG_PRINTLN("preHwInit: ");
+	// Serial.begin(MY_BAUD_RATE);
+	// Serial.println("preHwInit...");
 	pinMode(LED_PIN, OUTPUT);   // sets the pin as output
 	digitalWrite( LED_PIN, HIGH );
 	LED_Blink(5,2);//Anzahl, Geschwindigkeit
