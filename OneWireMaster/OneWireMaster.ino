@@ -86,7 +86,7 @@ C:\_Lokale_Daten_ungesichert\Arduino\MySensors\OneWireMaster\OneWireMaster.ino:4
 #define BATTERY_SENSE_PIN A0
 
 // Node and sketch information
-#define SKETCH_VER            			"1.6-002"        			// Sketch version
+#define SKETCH_VER            			"1.6-003"        			// Sketch version
 #define SKETCH_NAME           			"OneWireMasterBat"   		// Optional child sensor name
 #define CHILD_ID_BAT_ANLG       		0							//ID für Batterie Werte an A0 --> Wird angewendet, wenn 3,3V StepUp Regler am Arduino angeschlossen ist. 
 																	//Batterie ohne Spannungsteiler direkt an A0 anschließen und analogReference(DEFAULT);(VREF bringt hier immer den gleichen Wert)
@@ -186,9 +186,11 @@ void preHwInit()
 
 void before()
 {
-	DEBUG_PRINTLN("before....");
-	DEBUG_PRINT("Version: ");
+	DEBUG_PRINTLN("before: ");
+	DEBUG_PRINT(SKETCH_NAME);
+	DEBUG_PRINT(" ");
 	DEBUG_PRINTLN(SKETCH_VER);
+	
 	analogReference(INTERNAL);
 
 	wait(100);//Warten bis sich alles eingeschwungen hat
@@ -228,7 +230,7 @@ void setup()
 void presentation()
 {
 	DEBUG_PRINTLN("presentation...");
-	sendSketchInfo(SKETCH_NAME, SKETCH_VER);  
+	sendSketchInfo(SKETCH_NAME, SKETCH_VER " " __TIME__ " " __DATE__);
 	present(CHILD_ID_BAT_ANLG, S_MULTIMETER);
 	present(CHILD_ID_BAT_VREF, S_MULTIMETER);
 	present(CHILD_ID_DEBUG, S_CUSTOM);
