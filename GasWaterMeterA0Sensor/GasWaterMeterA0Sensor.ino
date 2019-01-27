@@ -58,7 +58,7 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 
 */
 
-#define SKETCH_VER						"2.4.1-015"				// Sketch version
+#define SKETCH_VER						"2.4.1-016"				// Sketch version
 #define MY_RADIO_RF24
 
 // #define MY_DEBUG //muss vor MySensors.h stehen
@@ -187,12 +187,9 @@ float flow = 0;
 
 void preHwInit() 
 {
-	DEBUG_SERIAL(115200);
-// #ifdef SER_DEBUG
-	// Serial.begin(115200);
-// #endif
+	DEBUG_SERIAL(MY_BAUD_RATE);
+	DEBUG_PRINTLN("preHwInit: ");
 
-	// DEBUG_PRINTLN("preHwInit: ");
 	// showEEprom();
 	// hwPinMode(UPLINK_LED, OUTPUT);
 	// hwPinMode(PULSE_LED, OUTPUT);
@@ -200,7 +197,11 @@ void preHwInit()
 
 void before() 
 {
-	// DEBUG_PRINTLN("before: ");
+	DEBUG_PRINTLN("before: ");
+	DEBUG_PRINT(SKETCH_NAME);
+	DEBUG_PRINT(" ");
+	DEBUG_PRINTLN(SKETCH_VER);
+
 	// DEBUG_PRINTLN("writeEeprom32: ");
 	// writeEeprom32(EEPROM_METER_VALUE, 338849);
 	// showEEprom();
@@ -271,9 +272,8 @@ void setup()
 
 
 void presentation()  {
-	DEBUG_PRINTLN(SKETCH_NAME);
-	// Send the sketch version information to the gateway and Controller
-	sendSketchInfo(SKETCH_NAME, SKETCH_VER);
+	
+	sendSketchInfo(SKETCH_NAME, SKETCH_VER " " __TIME__ " " __DATE__);
 #ifdef WATER	
 	present(CHILD_ID, S_WATER, CHILD_NAME, "Counter Child");       
 #else
