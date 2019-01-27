@@ -37,19 +37,20 @@
 #define SKETCH_NAME 				"RemoteReceiverActuator"
 #define SKETCH_VER 					"1.0-002"
 
-#define LED_PIN 					3      				// Arduino pin attached to MOSFET Gate pin
-#define FADE_DELAY 					2  					// Delay in ms for each percentage fade up/down (10ms = 1s full-range dim)
+#define	SERVO_BIG_STEP				20
+#define	SERVO_SMALL_STEP			5
+// #define LED_PIN 					3      				// Arduino pin attached to MOSFET Gate pin
+// #define FADE_DELAY 				2  					// Delay in ms for each percentage fade up/down (10ms = 1s full-range dim)
 
 #define CHILD_ID_LED       			0     				//ID für Child, welches den MOSFET per PWM ansteuert
 #define CHILD_ID_LED_TEXT			"NANO IO SHIELD"
 #define LED_CHILD_0_EEPROM			0
 #define SENDER_REMOTE_NODE			130
 
-#define HEARTBEAT_INTERVAL	300000        //später alle 5 Minuten, zum Test alle 30 Sekunden
+#define HEARTBEAT_INTERVAL			300000        //später alle 5 Minuten, zum Test alle 30 Sekunden
 unsigned long lastHeartBeat = HEARTBEAT_INTERVAL - 5000; //das erste Mal sollte nach 5 Sekunden etwas passieren
 
-MyMessage dimmerMsg(CHILD_ID_LED, V_VAR1);
-MyMessage lightMsg(CHILD_ID_LED, V_VAR2);
+MyMessage ButtonMsg					(CHILD_ID_LED, V_VAR1);
 
 Servo myservo;  // create servo object to control a servo
 
@@ -63,6 +64,8 @@ void preHwInit()
 {
 	DEBUG_SERIAL(MY_BAUD_RATE);
 	DEBUG_PRINTLN("preHwInit...");
+	myservo.attach(14);  // attaches the servo on pin 9 to the servo object A0=14
+	ServoReset();
 }
 
 void before() 
@@ -81,7 +84,7 @@ void before()
 void setup()
 {
 	DEBUG_PRINTLN("Setup");
-	myservo.attach(14);  // attaches the servo on pin 9 to the servo object A0=14
+
 }
 
 
@@ -179,22 +182,22 @@ void receive(const MyMessage &message)
 			
 			if (sData[0] == 'U')
 			{
-				ServoUp(10);
+				ServoUp(SERVO_BIG_STEP);
 				DEBUG_PRINTLN("U");
 			}
 			else if (sData[0] == 'u')
 			{
-				ServoUp(5);
+				ServoUp(SERVO_SMALL_STEP);
 				DEBUG_PRINTLN("u");
 			}
 			else if (sData[0] == 'd')
 			{
-				ServoDown(5);
+				ServoDown(SERVO_SMALL_STEP);
 				DEBUG_PRINTLN("d");
 			}
 			else if (sData[0] == 'D')
 			{
-				ServoDown(10);
+				ServoDown(SERVO_BIG_STEP);
 				DEBUG_PRINTLN("D");
 			}
 			else if (sData[0] == 'R')
