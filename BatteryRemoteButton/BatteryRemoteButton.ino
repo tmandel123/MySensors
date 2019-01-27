@@ -2,14 +2,14 @@
 // LED blickt, wenn ACK vom Gateway kommt, sonst wird erneut gesendet. nach 3 Sendeversuchen blinkt die LED 3 Mal
 
 // Enable debug prints to serial monitor
-#define MY_DEBUG
+// #define MY_DEBUG
 #define SER_DEBUG
 
 #define MY_RF24_CHANNEL 96									// Für Testphase deaktivieren, damit Kanal 76 aktiv wird (Prod=96 Test=76)
 #define MY_RADIO_RF24
 //#define MY_SMART_SLEEP_WAIT_DURATION (1000ul)
 #define MY_NODE_ID 130
-// #define MY_PARENT_NODE_ID 0
+// #define MY_PARENT_NODE_ID 50
 // #define MY_PARENT_NODE_IS_STATIC
 #define MY_SPLASH_SCREEN_DISABLED
 #define MY_TRANSPORT_WAIT_READY_MS (5000ul)
@@ -27,7 +27,7 @@
 // #define BATTERY_SENSE_PIN A0
 
 // Node and sketch information
-#define SKETCH_VER            			"1.0-004"        			// Sketch version
+#define SKETCH_VER            			"1.0-005"        			// Sketch version
 #define SKETCH_NAME           			"BatteryRemoteButton"   		// Optional child sensor name
 #define LED_PIN 						8							// Arduino pin attached to MOSFET Gate pin
 #define RECEIVER_NODE					224
@@ -45,6 +45,8 @@
 
 #define PRIMARY_BUTTON_PIN 				2
 #define SECONDARY_BUTTON_PIN 			3
+#define DEBOUNCE_TICKS					15
+#define CLICK_TICKS						250
 
 #define	BAT_VREF_MAX_VOLTATE			3150
 #define	BAT_VREF_MIN_VOLTATE			1800
@@ -65,7 +67,7 @@
 VoltageReference vRef;
 
 OneButton button1(PRIMARY_BUTTON_PIN,1,true); //Pin, 1=button connected to Ground, true = INPUT_PULLUP
-// OneButton button2(SECONDARY_BUTTON_PIN);
+OneButton button2(SECONDARY_BUTTON_PIN,1,true);
 
 MyMessage BatvRefValue			(CHILD_ID_BAT_VREF,		V_VOLTAGE);
 MyMessage ButtonMsg				(BUTTON_CHILD, 			V_VAR1);
@@ -100,16 +102,23 @@ void before()
 
 void setup()
 {
-	// Setup the buttons
-	// pinMode(PRIMARY_BUTTON_PIN, INPUT_PULLUP);
-	// pinMode(SECONDARY_BUTTON_PIN, INPUT_PULLUP);
 	button1.attachDoubleClick(doubleclick1);
 	button1.attachClick(click1);
 	button1.attachLongPressStart(longPressStart1);
 	// button1.attachLongPressStop(longPressStop1);
 	// button1.attachDuringLongPress(longPress1);
-	button1.setDebounceTicks(15);
-	button1.setClickTicks(250);
+	button1.setDebounceTicks(DEBOUNCE_TICKS);
+	button1.setClickTicks(CLICK_TICKS);
+	
+	button2.attachDoubleClick(doubleclick2);
+	button2.attachClick(click2);
+	button2.attachLongPressStart(longPressStart2);
+	// button2.attachLongPressStop(longPressStop2);
+	// button2.attachDuringLongPress(longPress2);
+	button2.setDebounceTicks(DEBOUNCE_TICKS);
+	button2.setClickTicks(CLICK_TICKS);	
+	
+	
 }
 
 
@@ -121,7 +130,6 @@ void presentation()
 	getCompileDateTime(__DATE__, CompileDate);
 	DEBUG_PRINTLN(CompileDate);
 	
-	// char SendString[25] = "01234567890123          "; //mehr als 25 Zeichen werden nicht übertragen
 	char SendString[25] = ""; //mehr als 25 Zeichen werden nicht übertragen
 	uint8_t i=0;
 	for (uint8_t j=0;j<(sizeof(SKETCH_VER)-1);j++)
@@ -155,27 +163,25 @@ void loop()
 {
 	static int counter=0;
 	currentTime = millis();
-	// DEBUG_PRINT("Button Tick ");
-	// DEBUG_PRINTLN(currentTime);
 	
 	button1.tick();
+	button2.tick();
 	
 	if ((currentTime - LastButtonUseTime) > 3000)
 	{
-		DEBUG_PRINTLN("TimeToSleep");
-		// DEBUG_PRINT(currentTime);
-		// DEBUG_PRINT(" ");
-		// DEBUG_PRINTLN(LastButtonUseTime);
-		
+		DEBUG_PRINTLN("TimeToSleep");	
 		wakeupReason = sleep(PRIMARY_BUTTON_PIN-2, CHANGE, SECONDARY_BUTTON_PIN-2, CHANGE, 0);
+		
 		button1.tick();
+		button2.tick();
+		
 		currentTime = millis();
 		LastButtonUseTime = currentTime;
 		// DEBUG_PRINT("wakeupReason: "); // 0 oder 1 je nach Button
 		// DEBUG_PRINTLN(wakeupReason);
 		counter++;
 	}
-	
+
 	if (counter >= 10)
 	{
 		counter = 0;
@@ -183,66 +189,83 @@ void loop()
 	}
 }
 
+void mySend(const char *myString)
+{
+	int myCounter=0;
+	bool sendStatus=false;
+	DEBUG_PRINT("mySend: ");
+	DEBUG_PRINTLN(myString);
+	// ButtonMsg.setDestination(RECEIVER_NODE);
+	while ( !sendStatus and (myCounter < 5))
+	{
+		// ButtonMsg.setDestination(RECEIVER_NODE);
+		sendStatus = send(ButtonMsg.set(myString), REQUEST_ACK);
+		DEBUG_PRINT("sendStatus >");
+		DEBUG_PRINT(sendStatus);
+		DEBUG_PRINT("< myCounter >");
+		DEBUG_PRINT(myCounter);
+		DEBUG_PRINTLN("<");
+		myCounter++;
+		wait(100*myCounter*2);
+	}
+	LastButtonUseTime=currentTime;
+}
 
 void click1()
 {
-	int Counter=0;
-	bool sendStatus=false;
-	DEBUG_PRINTLN("click1 d");
-	// ButtonMsg.setDestination(RECEIVER_NODE);
-	while ( !sendStatus and (Counter < 5))
-	{
-		// ButtonMsg.setDestination(RECEIVER_NODE);
-		sendStatus = send(ButtonMsg.set("d"), REQUEST_ACK);
-		DEBUG_PRINT("sendStatus >");
-		DEBUG_PRINT(sendStatus);
-		DEBUG_PRINTLN("<");
-		Counter++;
-	}
-	LastButtonUseTime=currentTime;
+	const char *myString = "d";
+	mySend(myString);
+}
+
+void click2()
+{
+	const char *myString = "u";
+	mySend(myString);
 }
 
 void longPressStart1()
 {
-	// int Counter=0;
-	// bool sendStatus=false;
-	DEBUG_PRINTLN("longPressStop1 R");
-	// ButtonMsg.setDestination(RECEIVER_NODE);
-	DEBUG_PRINTLN(send(ButtonMsg.set("R"), REQUEST_ACK));
-	// while ( !sendStatus and (Counter < 5))
-	// {
-		// sendStatus = send(ButtonMsg.set("R"), REQUEST_ACK);
-		// Counter++;
-	// }
-	LastButtonUseTime=currentTime;
+	const char *myString = "R";
+	mySend(myString);
+	// mySend(String("R"));
 }
+
+void longPressStart2()
+{
+	const char *myString = "R";
+	mySend(myString);
+	// mySend(String("R"));
+}
+
 
 void doubleclick1()
 {
-	int Counter=0;
-	bool sendStatus=false;
-	DEBUG_PRINTLN("doubleclick1 D");	
-	// ButtonMsg.setDestination(RECEIVER_NODE);
-	while ( !sendStatus and (Counter < 5))
-	{
-		sendStatus = send(ButtonMsg.set("D"), REQUEST_ACK);
-		Counter++;
-	}
-	LastButtonUseTime=currentTime;
+	const char *myString = "D";
+	mySend(myString);
+	// mySend(String("D"));
 }
 
 
-void longPressStop1()
+void doubleclick2()
 {
-	DEBUG_PRINTLN("longPressStop1");
-	LastButtonUseTime=currentTime;
+	const char *myString = "U";
+	mySend(myString);	
+	
+	// mySend(String("U"));
 }
 
-void longPress1()
-{
-	DEBUG_PRINTLN("longPress1");
-	LastButtonUseTime=currentTime;
-}
+
+// void longPressStop1()
+// {
+	// DEBUG_PRINTLN("longPressStop1");
+	// LastButtonUseTime=currentTime;
+// }
+
+// void longPress1()
+// {
+	// DEBUG_PRINTLN("longPress1");
+	// LastButtonUseTime=currentTime;
+// }
 
 void BatteryVRef()
 {
