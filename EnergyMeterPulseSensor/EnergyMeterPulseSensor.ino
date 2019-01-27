@@ -19,9 +19,10 @@
  *******************************/
  
 
-//	20181112 Version 1.32	millis() von "uint32_t now" nach "unsigned long currentTime" und wieder zurück
-//	20181112 Version 1.33	Sleep_mode ausgebaut und DEBUG_PRINT eingeführt
-//	20181114 Version 1.34	boolean informGW = false; - > bool informGW = false;
+//	20181112 Version 1.32		millis() von "uint32_t now" nach "unsigned long currentTime" und wieder zurück
+//	20181112 Version 1.33		Sleep_mode ausgebaut und DEBUG_PRINT eingeführt
+//	20181114 Version 1.34		boolean informGW = false; - > bool informGW = false;
+//	20181114 Version 1.4-003	MY_REPEATER_FEATURE deaktiviert und sendSketchInfo(SKETCH_NAME, SKETCH_VER " " __TIME__ " " __DATE__);
 //
 
 
@@ -38,14 +39,15 @@
 #define MY_RF24_CHANNEL 96
 #define MY_NODE_ID 100
 #define MY_PARENT_NODE_ID 50
-#define MY_REPEATER_FEATURE
+// #define MY_REPEATER_FEATURE									//	2019-01-23	MY_REPEATER_FEATURE deaktiviert weil dieser Sensor als einziger instabil läuft. 
+																//	Es gibt immer wieder Aussetzer von mehreren Stunden. Danach läuft alles wieder normal. Zählerwerte gehen jedoch nicht verloren. Laufzeit akutell 36 Tage.
 
 #define MY_TRANSPORT_WAIT_READY_MS (5000ul)
 
 #include <MySensors.h>
 
 #define SKETCH_NAME						"EnergyMeter"			// Optional child sensor name
-#define SKETCH_VER						"1.4-002"				// Sketch version
+#define SKETCH_VER						"1.4-003"				// Sketch version
 
 
 
@@ -131,6 +133,9 @@ void preHwInit()
 void before() 
 {
 	DEBUG_PRINTLN("before: ");
+	DEBUG_PRINT(SKETCH_NAME);
+	DEBUG_PRINT(" ");
+	DEBUG_PRINTLN(SKETCH_VER);
 }
 
 void setup()
@@ -171,7 +176,8 @@ void setup()
 void presentation()
 {
 
-	sendSketchInfo(SKETCH_NAME, SKETCH_VER); 
+	// sendSketchInfo(SKETCH_NAME, SKETCH_VER); 
+	sendSketchInfo(SKETCH_NAME, SKETCH_VER " " __TIME__ " " __DATE__);
 	// Register this device as power sensor
 	present(CHILD_ID, S_POWER, CHILD_NAME_1);
 	present(CHILD_ID_ANALOG, S_CUSTOM, "Set/Get MeterValue EEPROM Child");
