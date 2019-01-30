@@ -1,25 +1,50 @@
-//ToDo: 2 Knöpfe (später für An und Aus?)
+/** ToDo: 2 Knöpfe (später für An und Aus?)
+
 // LED blickt, wenn ACK vom Gateway kommt, sonst wird erneut gesendet. nach 3 Sendeversuchen blinkt die LED 3 Mal
 
-// Enable debug prints to serial monitor
-// #define MY_DEBUG
+*/
+//	###################   Debugging   #####################
+#define MY_DEBUG								//nur mit Debug aktiviert können Sends im Abstand von 50ms weitergeleitet werden. Sonst gibt es zu viele NACKs
 #define SER_DEBUG
-
-#define MY_RF24_CHANNEL 96									// Für Testphase deaktivieren, damit Kanal 76 aktiv wird (Prod=96 Test=76)
-#define MY_RADIO_RF24
-//#define MY_SMART_SLEEP_WAIT_DURATION (1000ul)
-#define MY_NODE_ID 130
-// #define MY_PARENT_NODE_ID 50
-// #define MY_PARENT_NODE_IS_STATIC
+// #define MY_DEBUG_VERBOSE_RF24								//Testen, welche zusätzlichen Infos angezeigt werden
 #define MY_SPLASH_SCREEN_DISABLED
-#define MY_TRANSPORT_WAIT_READY_MS (5000ul)
-
 #define MY_SIGNAL_REPORT_ENABLED
 
+//	###################   Features   #####################
+// #define MY_REPEATER_FEATURE
 
+//	###################   LEDs   #####################
 #define MY_WITH_LEDS_BLINKING_INVERSE
-#define MY_DEFAULT_TX_LED_PIN (8)
-#define MY_DEFAULT_LED_BLINK_PERIOD 10
+#define MY_DEFAULT_TX_LED_PIN 				(8)
+#define MY_DEFAULT_LED_BLINK_PERIOD 		10
+
+// ###################   Transport   #####################
+/*
+RF24_PA_MIN = -18dBm 
+RF24_PA_LOW = -12dBm 
+RF24_PA_HIGH = -6dBm 
+RF24_PA_MAX = 0dBm
+*/
+#define MY_RF24_PA_LEVEL 					RF24_PA_MAX	//NodeID 50, seit MySensors 2.3.1 scheint auch PA_MAX zu funktionieren (Shielded Modul)
+#define MY_RADIO_RF24
+#define MY_RF24_CHANNEL 					96
+#define MY_TRANSPORT_WAIT_READY_MS 			(5000ul)
+
+#define MY_NODE_ID 							130
+#define MY_PARENT_NODE_ID 					50
+#define MY_PARENT_NODE_IS_STATIC
+// #define MY_PASSIVE_NODE
+
+
+// ###################   Node Spezifisch   #####################
+#define SKETCH_VER            				"1.0-005"        			// Sketch version
+#define SKETCH_NAME           				"BatteryRemoteButton"   		// Optional child sensor name
+#define NODE_TXT 							"Info"
+#define CHILD_ID_TEXT						0
+
+
+
+
 
 // #define MY_PASSIVE_NODE
 
@@ -28,30 +53,29 @@
 // #define BATTERY_SENSE_PIN A0
 
 // Node and sketch information
-#define SKETCH_VER            			"1.0-005"        			// Sketch version
-#define SKETCH_NAME           			"BatteryRemoteButton"   		// Optional child sensor name
-#define LED_PIN 						8							// Arduino pin attached to MOSFET Gate pin
-#define RECEIVER_NODE					224
+
+#define LED_PIN 							8							// Arduino pin attached to MOSFET Gate pin
+#define RECEIVER_NODE						224
  
 
-#define CHILD_ID_BAT_ANLG       		0							//ID für Batterie Werte an A0 --> Wird angewendet, wenn 3,3V StepUp Regler am Arduino angeschlossen ist. 
-																	//Batterie ohne Spannungsteiler direkt an A0 anschließen und analogReference(DEFAULT);(VREF bringt hier immer den gleichen Wert)
-#define CHILD_ID_BAT_VREF       		1         					//ID für Batterie Werte Intern per VRef --> Bei Betrieb mit 2-3 Batterien an Arduino mit abgelöteten Spannungsregler
+#define CHILD_ID_BAT_ANLG       			0							//ID für Batterie Werte an A0 --> Wird angewendet, wenn 3,3V StepUp Regler am Arduino angeschlossen ist. 
+																		//Batterie ohne Spannungsteiler direkt an A0 anschließen und analogReference(DEFAULT);(VREF bringt hier immer den gleichen Wert)
+#define CHILD_ID_BAT_VREF       			1         					//ID für Batterie Werte Intern per VRef --> Bei Betrieb mit 2-3 Batterien an Arduino mit abgelöteten Spannungsregler
+	
+#define BUTTON_CHILD	 					2
 
-#define BUTTON_CHILD	 				2
-
-#define SEND_WAIT						40							// 20ms reicht nicht aus, dann kommt immer NACK, bei 22ms läuft es (mit Repeater sollten es 50ms sein)							
-#define REQUEST_ACK						true
+#define SEND_WAIT							40							// 20ms reicht nicht aus, dann kommt immer NACK, bei 22ms läuft es (mit Repeater sollten es 50ms sein)							
+#define REQUEST_ACK							true
 
 
-#define PRIMARY_BUTTON_PIN 				2
-#define SECONDARY_BUTTON_PIN 			3
-#define DEBOUNCE_TICKS					15
-#define CLICK_TICKS						250
+#define PRIMARY_BUTTON_PIN 					2
+#define SECONDARY_BUTTON_PIN 				3
+#define DEBOUNCE_TICKS						15
+#define CLICK_TICKS							250
 
-#define	BAT_VREF_MAX_VOLTATE			3150
-#define	BAT_VREF_MIN_VOLTATE			1800
-// #define BAT_MESSURED					3510
+#define	BAT_VREF_MAX_VOLTATE				3150
+#define	BAT_VREF_MIN_VOLTATE				1800
+// #define BAT_MESSURED						3510
 // #define BAT_VREF_CORRECTION_VALUE		(float)BAT_VREF_MAX_VOLTATE/(float)BAT_MESSURED
 // #define BAT_VREF_CORRECTION_VALUE		1
 
@@ -73,8 +97,7 @@ MyMessage ButtonMsg				(BUTTON_CHILD, 			V_VAR1);
 // bool TransportUplink = true;
 // static uint8_t counter=0;
 int8_t wakeupReason = 0;
-uint32_t currentTime;
-uint32_t LastButtonUseTime;
+uint32_t LastButtonEventTime;
 
 void preHwInit() 
 {
@@ -99,72 +122,38 @@ void before()
 
 void setup()
 {
-	button1.attachDoubleClick(doubleclick1);
+	// button1.attachDoubleClick(doubleclick1);
 	button1.attachClick(click1);
-	button1.attachLongPressStart(longPressStart1);
-	// button1.attachLongPressStop(longPressStop1);
-	// button1.attachDuringLongPress(longPress1);
-	button1.setDebounceTicks(DEBOUNCE_TICKS);
-	button1.setClickTicks(CLICK_TICKS);
+	// button1.attachLongPressStart(longPressReset);
+	// button1.setDebounceTicks(DEBOUNCE_TICKS);
+	// button1.setClickTicks(CLICK_TICKS);
 	
-	button2.attachDoubleClick(doubleclick2);
-	button2.attachClick(click2);
-	button2.attachLongPressStart(longPressStart2);
-	// button2.attachLongPressStop(longPressStop2);
-	// button2.attachDuringLongPress(longPress2);
-	button2.setDebounceTicks(DEBOUNCE_TICKS);
-	button2.setClickTicks(CLICK_TICKS);	
-	
-	
+	// button2.attachDoubleClick(doubleclick2);
+	// button2.attachClick(click2);
+	// button2.attachLongPressStart(longPressReset);
+	// button2.setDebounceTicks(DEBOUNCE_TICKS);
+	// button2.setClickTicks(CLICK_TICKS);	
 }
-
 
 
 void presentation()
 {
 	DEBUG_PRINTLN("presentation...");
-	char CompileDate[8];
-	getCompileDateTime(__DATE__, CompileDate);
-	DEBUG_PRINTLN(CompileDate);
-	
-	char SendString[25] = ""; //mehr als 25 Zeichen werden nicht übertragen
-	uint8_t i=0;
-	for (uint8_t j=0;j<(sizeof(SKETCH_VER)-1);j++)
-	{
-		SendString[j]=SKETCH_VER[j];
-		i++;
-	}
-	SendString[i]=' ';
-	i++;
-	for (uint8_t j=0;j<(sizeof(CompileDate));j++)
-	{
-		SendString[i]=CompileDate[j];
-		i++;
-	}
-	SendString[i]=' ';
-	i++;
-
-	for (uint8_t j=0;j<5;j++)
-	{
-		SendString[i]=__TIME__[j];
-		i++;
-	}
-
-	sendSketchInfo(SKETCH_NAME, SendString );
+	mySendSketchInfo();
 	present(BUTTON_CHILD, S_CUSTOM);
 	present(CHILD_ID_BAT_VREF, S_MULTIMETER);
 }
 
-// Loop will iterate on changes on the BUTTON_PINs
+
 void loop()
 {
 	static int counter=0;
-	currentTime = millis();
+	uint32_t currentTime = millis();
 	
 	button1.tick();
 	button2.tick();
 	
-	if ((currentTime - LastButtonUseTime) > 3000)
+	if ((currentTime - LastButtonEventTime) > 3000)
 	{
 		DEBUG_PRINTLN("TimeToSleep");	
 		wakeupReason = sleep(PRIMARY_BUTTON_PIN-2, CHANGE, SECONDARY_BUTTON_PIN-2, CHANGE, 0);
@@ -173,7 +162,8 @@ void loop()
 		button2.tick();
 		
 		currentTime = millis();
-		LastButtonUseTime = currentTime;
+
+		LastButtonEventTime = currentTime;
 		// DEBUG_PRINT("wakeupReason: "); // 0 oder 1 je nach Button
 		// DEBUG_PRINTLN(wakeupReason);
 		counter++;
@@ -186,17 +176,17 @@ void loop()
 	}
 }
 
-void mySend(const char *myString)
+void mySendString(MyMessage ThisMessage, const char *myString)
 {
 	int myCounter=0;
 	bool sendStatus=false;
 	DEBUG_PRINT("mySend: ");
 	DEBUG_PRINTLN(myString);
-	// ButtonMsg.setDestination(RECEIVER_NODE);
+	// ThisMessage.setDestination(RECEIVER_NODE);
 	while ( !sendStatus and (myCounter < 5))
 	{
-		// ButtonMsg.setDestination(RECEIVER_NODE);
-		sendStatus = send(ButtonMsg.set(myString), REQUEST_ACK);
+		// ThisMessage.setDestination(RECEIVER_NODE);
+		sendStatus = send(ThisMessage.set(myString), REQUEST_ACK);
 		DEBUG_PRINT("sendStatus >");
 		DEBUG_PRINT(sendStatus);
 		DEBUG_PRINT("< myCounter >");
@@ -205,52 +195,43 @@ void mySend(const char *myString)
 		myCounter++;
 		wait(100*myCounter*2);
 	}
-	
 }
 
 void click1()
 {
-	const char *myString = "d";
-	mySend(myString);
-	LastButtonUseTime=currentTime;
+	mySendString(ButtonMsg,"d");
+	LastButtonEventTime=millis();
 }
 
-void click2()
-{
-	const char *myString = "u";
-	mySend(myString);
-	LastButtonUseTime=currentTime;
-}
+// void click2()
+// {
+	// const char *myString = "u";
+	// mySend(myString);
+	// LastButtonEventTime=currentTime;
+// }
 
-void longPressStart1()
-{
-	const char *myString = "R";
-	mySend(myString);
-	LastButtonUseTime=currentTime;
-}
-
-void longPressStart2()
-{
-	const char *myString = "R";
-	mySend(myString);
-	LastButtonUseTime=currentTime;
-}
+// void longPressReset()
+// {
+	// const char *myString = "R";
+	// mySend(myString);
+	// LastButtonEventTime=currentTime;
+// }
 
 
-void doubleclick1()
-{
-	const char *myString = "D";
-	mySend(myString);
-	LastButtonUseTime=currentTime;
-}
+// void doubleclick1()
+// {
+	// const char *myString = "D";
+	// mySend(myString);
+	// LastButtonEventTime=currentTime;
+// }
 
 
-void doubleclick2()
-{
-	const char *myString = "U";
-	mySend(myString);	
-	LastButtonUseTime=currentTime;
-}
+// void doubleclick2()
+// {
+	// const char *myString = "U";
+	// mySend(myString);	
+	// LastButtonEventTime=currentTime;
+// }
 
 // void longPressStop1()
 // void longPress1()
@@ -281,36 +262,3 @@ void BatteryVRef()
 	send(BatvRefValue.set(batVoltage,3));
 }
 
-
-// void LED_Blink(int Anzahl, int Dauer)
-// {
-
-	// int OffTime;
-	// int BlinkTime;
-	// if (Dauer == 1)
-	// {
-		// BlinkTime=20;
-		// OffTime=10;
-	// }
-	// else
-	// {
-		// BlinkTime=200;
-		// OffTime=200;
-	// }
-
-
-	// for (int i=0; i<Anzahl; i++){
-		// digitalWrite( LED_PIN, HIGH );
-		// wait(BlinkTime);
-		// digitalWrite( LED_PIN, LOW );
-		// wait(OffTime);
-	// }
-// }
-
-// void getCompileDateTime(char const *date, char *buff) {
-    // int month, day, year;
-    // static const char month_names[] = "JanFebMarAprMayJunJulAugSepOctNovDec";
-    // sscanf(date, "%s %d %d", buff, &day, &year);
-    // month = (strstr(month_names, buff)-month_names)/3+1;
-    // sprintf(buff, "%d%02d%02d", year, month, day);
-// }
