@@ -147,7 +147,7 @@ void presentation()
 
 void loop()
 {
-	unsigned long currentTime = millis();
+	uint32_t currentTime = millis();
 	
 	if (currentTime - lastHeartBeat > (unsigned long)HEARTBEAT_INTERVAL)
 	{
