@@ -1,6 +1,60 @@
 
 // Enable debug prints to serial monitor
-// #define MY_DEBUG
+#define MY_DEBUG
+#define MY_SPECIAL_DEBUG
+
+// #define MY_REPEATER_FEATURE
+
+
+
+
+// Enable and select radio type attached
+#define MY_RADIO_RF24
+#define MY_RF24_SANITY_CHECK
+
+#define MY_NODE_ID 224
+// #define MY_PARENT_NODE_ID 51
+// #define MY_PARENT_NODE_IS_STATIC
+#define MY_RF24_CHANNEL 96									// Für Testphase deaktivieren, damit Kanal 76 aktiv wird (Prod=96 Test=76)
+
+/**
+ * @def MY_RF24_PA_LEVEL
+ * @brief Default RF24 PA level. Override in sketch if needed.
+ *
+ * - RF24_PA_MIN = -18dBm
+ * - RF24_PA_LOW = -12dBm
+ * - RF24_PA_HIGH = -6dBm
+ * - RF24_PA_MAX = 0dBm
+ */
+ 
+#define MY_RF24_PA_LEVEL RF24_PA_LOW
+
+#define MY_SIGNAL_REPORT_ENABLED
+
+
+#define MY_TRANSPORT_WAIT_READY_MS (5000ul)
+// #define MY_INDICATION_HANDLER
+
+
+
+#include <MySensors.h>
+#include <Servo.h>
+
+
+#define SKETCH_NAME 				"RemoteReceiverActuator"
+#define SKETCH_VER 					"1.0-003-2"
+
+#define	SERVO_BIG_STEP				20
+#define	SERVO_SMALL_STEP			5
+// #define LED_PIN 					3      				// Arduino pin attached to MOSFET Gate pin
+// #define FADE_DELAY 				2  					// Delay in ms for each percentage fade up/down (10ms = 1s full-range dim)
+
+#define CHILD_ID_LED       			0     				//ID für Child, welches den MOSFET per PWM ansteuert
+#define CHILD_ID_LED_TEXT			"BUTTON_0"
+#define LED_CHILD_0_EEPROM			0
+#define SENDER_REMOTE_NODE			130
+
+#define HEARTBEAT_INTERVAL			300000        //später alle 5 Minuten, zum Test alle 30 Sekunden
 
 #define SER_DEBUG
 #ifdef SER_DEBUG
@@ -13,41 +67,6 @@
 #define DEBUG_PRINTLN(x) 
 #endif
 
-
-// Enable and select radio type attached
-#define MY_RADIO_RF24
-#define MY_RF24_SANITY_CHECK
-
-#define MY_NODE_ID 224
-// #define MY_PARENT_NODE_ID 0
-// #define MY_PARENT_NODE_IS_STATIC
-#define MY_RF24_CHANNEL 96									// Für Testphase deaktivieren, damit Kanal 76 aktiv wird (Prod=96 Test=76)
-
-
-#define MY_RF24_PA_LEVEL RF24_PA_HIGH
-#define MY_TRANSPORT_WAIT_READY_MS (5000ul)
-// #define MY_INDICATION_HANDLER
-
-
-
-#include <MySensors.h>
-#include <Servo.h>
-
-
-#define SKETCH_NAME 				"RemoteReceiverActuator"
-#define SKETCH_VER 					"1.0-002"
-
-#define	SERVO_BIG_STEP				20
-#define	SERVO_SMALL_STEP			5
-// #define LED_PIN 					3      				// Arduino pin attached to MOSFET Gate pin
-// #define FADE_DELAY 				2  					// Delay in ms for each percentage fade up/down (10ms = 1s full-range dim)
-
-#define CHILD_ID_LED       			0     				//ID für Child, welches den MOSFET per PWM ansteuert
-#define CHILD_ID_LED_TEXT			"NANO IO SHIELD"
-#define LED_CHILD_0_EEPROM			0
-#define SENDER_REMOTE_NODE			130
-
-#define HEARTBEAT_INTERVAL			300000        //später alle 5 Minuten, zum Test alle 30 Sekunden
 unsigned long lastHeartBeat = HEARTBEAT_INTERVAL - 5000; //das erste Mal sollte nach 5 Sekunden etwas passieren
 
 MyMessage ButtonMsg					(CHILD_ID_LED, V_VAR1);

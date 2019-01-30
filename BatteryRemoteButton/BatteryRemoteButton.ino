@@ -14,15 +14,16 @@
 #define MY_SPLASH_SCREEN_DISABLED
 #define MY_TRANSPORT_WAIT_READY_MS (5000ul)
 
+#define MY_SIGNAL_REPORT_ENABLED
+
+
 #define MY_WITH_LEDS_BLINKING_INVERSE
 #define MY_DEFAULT_TX_LED_PIN (8)
 #define MY_DEFAULT_LED_BLINK_PERIOD 10
 
 // #define MY_PASSIVE_NODE
 
-#include <MySensors.h>
-#include <VoltageReference.h>			// https://github.com/rlogiacco/VoltageReference Version 1.2.2
-#include <OneButton.h>					// http://www.mathertel.de/Arduino/OneButtonLibrary.aspx Version 1.3
+			// http://www.mathertel.de/Arduino/OneButtonLibrary.aspx Version 1.3
 
 // #define BATTERY_SENSE_PIN A0
 
@@ -54,15 +55,11 @@
 // #define BAT_VREF_CORRECTION_VALUE		(float)BAT_VREF_MAX_VOLTATE/(float)BAT_MESSURED
 // #define BAT_VREF_CORRECTION_VALUE		1
 
-#ifdef SER_DEBUG
-#define DEBUG_SERIAL(x) Serial.begin(x)
-#define DEBUG_PRINT(x) Serial.print(x)
-#define DEBUG_PRINTLN(x) Serial.println(x)
-#else
-#define DEBUG_SERIAL(x)
-#define DEBUG_PRINT(x) 
-#define DEBUG_PRINTLN(x) 
-#endif
+
+#include <MySensors.h>
+#include <VoltageReference.h>			// https://github.com/rlogiacco/VoltageReference Version 1.2.2
+#include <OneButton.h>		
+#include "C:\_Lokale_Daten_ungesichert\Arduino\MySensors\CommonFunctions.h" //muss nach allen anderen #defines stehen
 
 VoltageReference vRef;
 
@@ -208,33 +205,35 @@ void mySend(const char *myString)
 		myCounter++;
 		wait(100*myCounter*2);
 	}
-	LastButtonUseTime=currentTime;
+	
 }
 
 void click1()
 {
 	const char *myString = "d";
 	mySend(myString);
+	LastButtonUseTime=currentTime;
 }
 
 void click2()
 {
 	const char *myString = "u";
 	mySend(myString);
+	LastButtonUseTime=currentTime;
 }
 
 void longPressStart1()
 {
 	const char *myString = "R";
 	mySend(myString);
-	// mySend(String("R"));
+	LastButtonUseTime=currentTime;
 }
 
 void longPressStart2()
 {
 	const char *myString = "R";
 	mySend(myString);
-	// mySend(String("R"));
+	LastButtonUseTime=currentTime;
 }
 
 
@@ -242,7 +241,7 @@ void doubleclick1()
 {
 	const char *myString = "D";
 	mySend(myString);
-	// mySend(String("D"));
+	LastButtonUseTime=currentTime;
 }
 
 
@@ -250,22 +249,12 @@ void doubleclick2()
 {
 	const char *myString = "U";
 	mySend(myString);	
-	
-	// mySend(String("U"));
+	LastButtonUseTime=currentTime;
 }
 
-
 // void longPressStop1()
-// {
-	// DEBUG_PRINTLN("longPressStop1");
-	// LastButtonUseTime=currentTime;
-// }
-
 // void longPress1()
-// {
-	// DEBUG_PRINTLN("longPress1");
-	// LastButtonUseTime=currentTime;
-// }
+
 
 void BatteryVRef()
 {
@@ -290,7 +279,6 @@ void BatteryVRef()
 	
 	sendBatteryLevel(batteryPcntVcc);
 	send(BatvRefValue.set(batVoltage,3));
-	
 }
 
 
@@ -319,10 +307,10 @@ void BatteryVRef()
 	// }
 // }
 
-void getCompileDateTime(char const *date, char *buff) {
-    int month, day, year;
-    static const char month_names[] = "JanFebMarAprMayJunJulAugSepOctNovDec";
-    sscanf(date, "%s %d %d", buff, &day, &year);
-    month = (strstr(month_names, buff)-month_names)/3+1;
-    sprintf(buff, "%d%02d%02d", year, month, day);
-}
+// void getCompileDateTime(char const *date, char *buff) {
+    // int month, day, year;
+    // static const char month_names[] = "JanFebMarAprMayJunJulAugSepOctNovDec";
+    // sscanf(date, "%s %d %d", buff, &day, &year);
+    // month = (strstr(month_names, buff)-month_names)/3+1;
+    // sprintf(buff, "%d%02d%02d", year, month, day);
+// }

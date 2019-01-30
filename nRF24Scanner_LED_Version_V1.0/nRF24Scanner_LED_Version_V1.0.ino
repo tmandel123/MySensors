@@ -1,4 +1,4 @@
-// #define MY_DEBUG
+#define MY_DEBUG
 
 // Enable and select radio type attached
 #define MY_RADIO_RF24
@@ -12,7 +12,7 @@
 
 #define NODE_TXT "Ack Test Node"
 // #define MY_INDICATION_HANDLER
-#define MY_RF24_PA_LEVEL RF24_PA_LOW
+#define MY_RF24_PA_LEVEL RF24_PA_MAX
 #define MY_TRANSPORT_WAIT_READY_MS (5000ul)
 
 
@@ -28,7 +28,7 @@
 
 #define LED_PIN 						6						// Arduino pin attached to MOSFET Gate pin
 #define CHILD_ID_TEXT					0
-#define SEND_WAIT						40						// 20ms reicht nicht aus, dann kommt immer NACK, bei 22ms läuft es (mit Repeater sollten es 50ms sein)							
+#define SEND_WAIT						20						// 20ms reicht nicht aus, dann kommt immer NACK, bei 22ms läuft es (mit Repeater sollten es 50ms sein)							
 #define REQUEST_ACK						true
 
 #ifdef SER_DEBUG
@@ -104,12 +104,12 @@ void loop()
 	Serial.println(pRSSI);
 	
 	
-	if (TransportUplink == false)
-	{
-		Serial.println(F("No Ack"));
-		LED_Blink(5,1);//Anzahl, Geschwindigkeit();
+	// if (TransportUplink == false)
+	// {
+		// Serial.println(F("No Ack"));
+		// LED_Blink(5,1);//Anzahl, Geschwindigkeit();
 		// LED_Blink(3,2);//Anzahl, Geschwindigkeit();
-	}
+	// }
 
 }
 
