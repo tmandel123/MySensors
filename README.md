@@ -14,7 +14,7 @@ Updates der Nodes erfolgen mit FOTA über Kanal 76 (der Reboot wird im Kanal 96 
 
 
 
-| First Header  | Second Header |
-| ------------- | ------------- |
+| First Header | Second Header |
+| -------------| ------------- |
 | Content Cell  | Content Cell  |
 | Content Cell  | Content Cell  |
