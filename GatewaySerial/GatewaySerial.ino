@@ -1,71 +1,113 @@
-/* ToDo:
+//	###################   Debugging   #####################
+// #define MY_DEBUG
+// #define SER_DEBUG
+// #define MY_DEBUG_VERBOSE_RF24								//Testen, welche zusätzlichen Infos angezeigt werden
+// #define MY_SPLASH_SCREEN_DISABLED
+// #define MY_SIGNAL_REPORT_ENABLED
 
-Debug Child, welcher z.B. Mitteilt, mit welchem PA-Level kompiliert wurde
-
-*/
-// Enable debug prints to serial monitor
-#define MY_DEBUG
-#define MY_RADIO_RF24
-// #define MY_RF24_CHANNEL 96									// Für Testphase deaktivieren, damit Kanal 76 aktiv wird (Prod=96 Test=76)
-
-// #define MY_RF24_PA_LEVEL RF24_PA_MAX //liefert fast nur NACK
-// #define MY_RF24_PA_LEVEL RF24_PA_HIGH
-#define MY_RF24_PA_LEVEL RF24_PA_LOW //läuft ohne Fehler, aber keine große Reichweite
-
-/*
-RF24_PA_MIN = -18dBm 
-RF24_PA_LOW = -12dBm 
-RF24_PA_HIGH = -6dBm 
-RF24_PA_MAX = 0dBm
-*/
-
-// Enable serial gateway
+//	###################   Features   #####################
+// #define MY_REPEATER_FEATURE
 #define MY_GATEWAY_SERIAL
-
-// Define a lower baud rate for Arduinos running on 8 MHz (Arduino Pro Mini 3.3V & SenseBender)
-#if F_CPU == 8000000L
-#define MY_BAUD_RATE 38400
-#endif
-
-// Enable inclusion mode
 // #define MY_INCLUSION_MODE_FEATURE
-// Enable Inclusion mode button on gateway
-#define MY_INCLUSION_BUTTON_FEATURE
+// #define MY_INCLUSION_BUTTON_FEATURE
+// #define MY_INCLUSION_MODE_BUTTON_PIN 3
 
-// Inverses behavior of inclusion button (if using external pullup)
-//#define MY_INCLUSION_BUTTON_EXTERNAL_PULLUP
+//	###################   LEDs   #####################
+#define MY_WITH_LEDS_BLINKING_INVERSE
+#define MY_DEFAULT_TX_LED_PIN 				(8)
+#define MY_DEFAULT_LED_BLINK_PERIOD 		10
 
-// Set inclusion mode duration (in seconds)
-// #define MY_INCLUSION_MODE_DURATION 60
-// Digital pin used for inclusion mode button
-#define MY_INCLUSION_MODE_BUTTON_PIN  3
+// ###################   Transport   #####################
+/*
+RF24_PA_MIN = 	-18dBm 		0	R_TX_Powerlevel_Pct 	25
+RF24_PA_LOW = 	-12dBm 		1	R_TX_Powerlevel_Pct
+RF24_PA_HIGH = 	-6dBm 		2	R_TX_Powerlevel_Pct
+RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
+*/
+// #define MY_RF24_PA_LEVEL 					RF24_PA_MIN  //EchoNote hatte Max -> Reichweite bis Gartenhaus (-29) und noch Empfangen (-149) bis hinter Steins Haus
+#define MY_RF24_PA_LEVEL 					RF24_PA_MAX
+#define MY_RADIO_RF24
+// #define MY_RF24_CHANNEL 					96
+// #define MY_TRANSPORT_WAIT_READY_MS 			(5000ul)
 
-// Set blinking period
-// #define MY_DEFAULT_LED_BLINK_PERIOD 300
+// #define MY_NODE_ID 							52
+// #define MY_PARENT_NODE_ID 					50
+// #define MY_PARENT_NODE_IS_STATIC
+// #define MY_PASSIVE_NODE
 
-// Inverses the behavior of leds
-//#define MY_WITH_LEDS_BLINKING_INVERSE
 
-// Flash leds on rx/tx/err
-// Uncomment to override default HW configurations
-//#define MY_DEFAULT_ERR_LED_PIN 4  // Error led pin
-//#define MY_DEFAULT_RX_LED_PIN  6  // Receive led pin
-//#define MY_DEFAULT_TX_LED_PIN  5  // the PCB, on board LED
+// ###################   Node Spezifisch   #####################
+#define SKETCH_VER            				"1.0-003"        			// Sketch version
+#define SKETCH_NAME           				"Gateway"   		// Optional child sensor name
+
+
+#define HEARTBEAT_INTERVAL        			600000        //später alle 5 Minuten, zum Test alle 30 Sekunden
+
 
 #include <MySensors.h>
+#include "C:\_Lokale_Daten_ungesichert\Arduino\MySensors\CommonFunctions.h" //muss nach allen anderen #defines stehen
+
+uint32_t lastHeartBeat = HEARTBEAT_INTERVAL;
+
 
 void setup()
 {
-	// Setup locally attached sensors
+
 }
 
 void presentation()
 {
-	// Present locally attached sensors
+	mySendSketchInfo();
+	myPresentation();
+	myHeartBeatLoop();
 }
 
 void loop()
 {
-	// delay(25);
-	// Send locally attached sensor data here
+	uint32_t currentTime = millis();
+	if (currentTime - lastHeartBeat > (uint32_t)HEARTBEAT_INTERVAL)
+	{
+		myHeartBeatLoop();
+		lastHeartBeat = currentTime;
+	}
+}
+
+void receive(const MyMessage &message)
+{
+	
+	// DEBUG_PRINTLN("receive");
+	
+	// DEBUG_PRINT("sensor: ");
+	// DEBUG_PRINTLN(message.sensor);
+
+	// DEBUG_PRINT("mGetPayloadType: ");
+	// DEBUG_PRINTLN(mGetPayloadType(message));
+	
+	// DEBUG_PRINT("sender: ");
+	// DEBUG_PRINTLN(message.sender);
+
+	
+	if (!mGetAck(message) && message.sensor == CHILD_ECHO_TIMESTAMP && message.sender == 225)
+	{
+		if (message.type == V_TEXT)
+		{
+			char buffer[14];
+			message.getString(buffer);
+			// DEBUG_PRINT("GOT ");
+			// DEBUG_PRINTLN(buffer);
+			
+			// DEBUG_PRINTLN("send test");
+			MyMessage msg (CHILD_ECHO_TIMESTAMP, V_TEXT);
+			msg.setDestination(message.sender);
+			msg.set(buffer);
+			send(msg);
+			// gatewayTransportSend(msg.setDestination(225).set("test2"));
+			// DEBUG_PRINTLN("transportSendRoute test2");
+			// transportSendRoute(msg.set("test2"));
+
+		}
+	}
+	
+
+		
 }
