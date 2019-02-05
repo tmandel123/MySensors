@@ -15,18 +15,18 @@
 
 // ###################   Transport   #####################
 /*
-RF24_PA_MIN = -18dBm 
-RF24_PA_LOW = -12dBm 
-RF24_PA_HIGH = -6dBm 
-RF24_PA_MAX = 0dBm
+RF24_PA_MIN = 	-18dBm 		0	R_TX_Powerlevel_Pct 	25
+RF24_PA_LOW = 	-12dBm 		1	R_TX_Powerlevel_Pct
+RF24_PA_HIGH = 	-6dBm 		2	R_TX_Powerlevel_Pct
+RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 */
 #define MY_RF24_PA_LEVEL 					RF24_PA_MAX	//NodeID 50, seit MySensors 2.3.1 scheint auch PA_MAX zu funktionieren (Shielded Modul)
 #define MY_RADIO_RF24
 #define MY_RF24_CHANNEL 					96
 #define MY_TRANSPORT_WAIT_READY_MS 			(5000ul)
 
-#define MY_NODE_ID 							51
-#define MY_PARENT_NODE_ID 					0
+#define MY_NODE_ID 							52
+#define MY_PARENT_NODE_ID 					50
 #define MY_PARENT_NODE_IS_STATIC
 // #define MY_PASSIVE_NODE
 
@@ -34,12 +34,13 @@ RF24_PA_MAX = 0dBm
 // ###################   Node Spezifisch   #####################
 #define SKETCH_VER            				"1.2-005"        			// Sketch version
 #define SKETCH_NAME           				"Repeater Node"   		// Optional child sensor name
-#define NODE_TXT 							"Info"
-#define CHILD_ID_TEXT						0
+#define CHILD_INFO							0
+#define CHILD_INFO_TEXT						"Info"
 
 
 
-#define HEARTBEAT_INTERVAL        			60000        //später alle 5 Minuten, zum Test alle 30 Sekunden
+
+#define HEARTBEAT_INTERVAL        			10000        //später alle 5 Minuten, zum Test alle 30 Sekunden
 
 
 
@@ -48,8 +49,9 @@ RF24_PA_MAX = 0dBm
 
 
 
-MyMessage hwTime		(CHILD_ID_TEXT, V_TEXT);
-unsigned long lastHeartBeat = HEARTBEAT_INTERVAL - 8000;
+MyMessage hwTime 							(CHILD_INFO, V_TEXT);
+
+uint32_t lastHeartBeat = HEARTBEAT_INTERVAL - 5000; //das erste Mal sollte nach 5 Sekunden etwas passieren
 
 
 void preHwInit() 
@@ -74,19 +76,17 @@ void presentation()
 {
 	DEBUG_PRINTLN("presentation...");
 	mySendSketchInfo();
-	present(CHILD_ID_TEXT, S_INFO, NODE_TXT);
+	present(CHILD_INFO, S_INFO, CHILD_INFO_TEXT);
 }
 
 void loop()
 {
 	uint32_t currentTime = millis();
-	if (currentTime - lastHeartBeat > (unsigned long)HEARTBEAT_INTERVAL)
+	if (currentTime - lastHeartBeat > (uint32_t)HEARTBEAT_INTERVAL)
 	{
 		sendHeartbeat();  
 		send(hwTime.set(currentTime),true);
 		lastHeartBeat = currentTime;
-		DEBUG_PRINT("RF24_getTxPowerLevel: ");
-		DEBUG_PRINTLN(RF24_getTxPowerLevel());
-		// Serial.println("HEARTBEAT_INTERVAL erreicht");
+		PrintRF24Transport();
 	}
 }
