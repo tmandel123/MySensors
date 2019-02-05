@@ -3,10 +3,14 @@
 Echo Node soll immer dort aufgestellt werden, wo später ein aktiver Aktor oder Sensor betrieben wird.
 Grundsätzliche funktionsweise:
 
-	- Der Controller (in Perl unter FHEM) sendet eine Info an den EchoNode 
-	- Der Test dauert nicht ewig, sondern eine festgelegte Zeitspanne. z.B. 30 Sekunden
-	- EchoNode wertet die empfangenen Nachrichten (auf Absender, Datentyp und ChildID) und sendet genau die selben Daten zurück
-	- der Absender (Controller oder anderer Node) misst die Laufzeit und die Rückläuferquote
+	
+	Neue Idee:
+	
+	Node sendet jede 3 Sekunden eine Nachricht ans Gateway (mit Ack) und Zeitstempel (setzt lokal variable lastSend)
+	Gateway leitet an Controller und Controller spiegelt die Nachricht zurück (ohne Ack)
+	Node empfängt und misst die Zeitspanne oder macht nach Wartezeitspanne weiter
+	Dann sendet Node die Statistik Datens ans Gateway
+	Nach ablauf der Wartezeitspanne auf die Antwort sendet Node die nächste Nachricht
 	
 	
 	Messung der Laufzeit von Nachrichten
@@ -17,19 +21,19 @@ Grundsätzliche funktionsweise:
 */
 
 //	###################   Debugging   #####################
-#define MY_DEBUG								//nur mit Debug aktiviert können Sends im Abstand von 50ms weitergeleitet werden. Sonst gibt es zu viele NACKs
+#define MY_DEBUG
 #define SER_DEBUG
 // #define MY_DEBUG_VERBOSE_RF24								//Testen, welche zusätzlichen Infos angezeigt werden
 #define MY_SPLASH_SCREEN_DISABLED
-#define MY_SIGNAL_REPORT_ENABLED
+// #define MY_SIGNAL_REPORT_ENABLED
 
 //	###################   Features   #####################
 // #define MY_REPEATER_FEATURE
 
 //	###################   LEDs   #####################
-#define MY_WITH_LEDS_BLINKING_INVERSE
-#define MY_DEFAULT_TX_LED_PIN 				(8)
-#define MY_DEFAULT_LED_BLINK_PERIOD 		10
+// #define MY_WITH_LEDS_BLINKING_INVERSE
+// #define MY_DEFAULT_TX_LED_PIN 				(8)
+// #define MY_DEFAULT_LED_BLINK_PERIOD 		10
 
 // ###################   Transport   #####################
 /*
@@ -38,39 +42,45 @@ RF24_PA_LOW = -12dBm
 RF24_PA_HIGH = -6dBm 
 RF24_PA_MAX = 0dBm
 */
-#define MY_RF24_PA_LEVEL 					RF24_PA_LOW	//NodeID 50, seit MySensors 2.3.1 scheint auch PA_MAX zu funktionieren (Shielded Modul)
+#define MY_RF24_PA_LEVEL 					RF24_PA_LOW
 #define MY_RADIO_RF24
-#define MY_RF24_CHANNEL 					96
-#define MY_TRANSPORT_WAIT_READY_MS			(5000ul)
+// #define MY_RF24_CHANNEL 					96
+// #define MY_TRANSPORT_WAIT_READY_MS			(5000ul)
+// #define MY_RF24_SANITY_CHECK
 
-#define MY_NODE_ID 							210
-#define MY_PARENT_NODE_ID 					50
+#define MY_NODE_ID 							225
+#define MY_PARENT_NODE_ID 					0
 #define MY_PARENT_NODE_IS_STATIC
 #define MY_PASSIVE_NODE
 
 
 // ###################   Node Spezifisch   #####################
-#define SKETCH_VER            				"1.0-001"        			// Sketch version
+#define SKETCH_VER            				"1.0-004"        			// Sketch version
 #define SKETCH_NAME           				"Echo Node"   		// Optional child sensor name
-#define NODE_TXT 							"Echo"
-#define CHILD_ID_TEXT						0
+#define MY_ECHO_NODE											//for some mir myPresentation() sendings
 
+// #define LED_PIN 							6						// Arduino pin attached to MOSFET Gate pin
+// #define SEND_WAIT							20						// 20ms reicht nicht aus, dann kommt immer NACK, bei 22ms läuft es (mit Repeater sollten es 50ms sein)							
+// #define REQUEST_ACK							true
 
+#define HEARTBEAT_INTERVAL        			600000        //später alle 5 Minuten, zum Test alle 30 Sekunden
+// #define ECHO_TXFAIL_RESET_TIME     			10000
+#define MAX_ECHO_WAIT	        			1000
 
-#define LED_PIN 							6						// Arduino pin attached to MOSFET Gate pin
-#define SEND_WAIT							20						// 20ms reicht nicht aus, dann kommt immer NACK, bei 22ms läuft es (mit Repeater sollten es 50ms sein)							
-#define REQUEST_ACK							true
-
-#define HEARTBEAT_INTERVAL        			60000        //später alle 5 Minuten, zum Test alle 30 Sekunden
 
 
 #include <MySensors.h>
+#include "C:\_Lokale_Daten_ungesichert\Arduino\MySensors\CommonFunctions.h" //muss nach allen anderen #defines stehen
 
-uint32_t lastHeartBeat = 0;
-bool TransportUplink = true;
-
-// MyMessage dimmerMsg(0, V_DIMMER);
-MyMessage hwTime (CHILD_ID_TEXT, V_TEXT);
+bool 		GotEchoResponse = true;
+int8_t		TxFailCounter = 0;
+uint16_t	maxPingTime = 1;
+uint16_t	minPingTime = 1000;
+uint32_t 	lastHeartBeat = 0;
+uint32_t	EchoLastSend = 0;
+uint32_t	EchoTimeStamp = 0;
+uint32_t	EchoReturn = 0;
+uint32_t 	EchoRuntime = 0;
 
 
 void preHwInit()
@@ -78,9 +88,7 @@ void preHwInit()
 	
 	DEBUG_SERIAL(MY_BAUD_RATE);
 	DEBUG_PRINTLN("preHwInit: ");
-	pinMode(LED_PIN, OUTPUT);   // sets the pin as output
-
-	
+	// pinMode(LED_PIN, OUTPUT);   // sets the pin as output
 }
 
 void before()
@@ -91,17 +99,14 @@ void before()
 
 void presentation()
 {
-	DEBUG_PRINTLN("presentation...");
+	DEBUG_PRINTLN("presentation...");;
 	mySendSketchInfo();
-	present(CHILD_ID_TEXT, S_INFO, NODE_TXT);
+	myPresentation();
 }
 
 void setup()
 {
 	DEBUG_PRINTLN("Setup...");
-	// Pull the gateway's current dim level - restore light level upon sendor node power-up
-	//wdt_reset();
-	//wdt_disable();
 }
 
 
@@ -110,29 +115,130 @@ void setup()
 void loop()
 {
 	uint32_t currentTime = millis();
-	int16_t pRSSI=0;
+	uint32_t TimeSinceEchoSend = currentTime - EchoLastSend;
+	uint32_t TimeSinceHeartBeat = currentTime - lastHeartBeat;
 	
-	TransportUplink = send(hwTime.set(currentTime), REQUEST_ACK);
-	wait(SEND_WAIT);
 
-	//ToDo:
-	pRSSI=RF24_getSendingRSSI();
-	DEBUG_PRINT(F("pRSSI: "));
-	DEBUG_PRINTLN(pRSSI);
-	
-	wait(1000);
 	
 	
-	// if (TransportUplink == false)
-	// {
-		// Serial.println(F("No Ack"));
-		// LED_Blink(5,1);//Anzahl, Geschwindigkeit();
-		// LED_Blink(3,2);//Anzahl, Geschwindigkeit();
-	// }
+	if (TimeSinceEchoSend > (uint32_t)MAX_ECHO_WAIT)
+	{
 
+
+		if (GotEchoResponse)
+		{
+			if (EchoRuntime > 0)
+			{
+				send(MsgEchoRunTime.set(EchoRuntime));
+				if (EchoRuntime > maxPingTime)
+				{
+					maxPingTime=EchoRuntime;
+				}
+				if (EchoRuntime < minPingTime)
+				{
+					minPingTime=EchoRuntime;
+				}
+			}
+		}
+		else
+		{
+			DEBUG_PRINTLN("NOT GotEchoResponse: ");
+			DEBUG_PRINT("EchoLastSend");
+			DEBUG_PRINTLN(EchoLastSend);
+			
+			DEBUG_PRINT("EchoTimeStamp");
+			DEBUG_PRINTLN(EchoTimeStamp);
+			
+			DEBUG_PRINT("EchoReturn");
+			DEBUG_PRINTLN(EchoReturn);
+			
+			DEBUG_PRINT("EchoRuntime");
+			DEBUG_PRINTLN(EchoRuntime);
+
+			TxFailCounter++;
+		}
+		nowRSSI=RF24_getSendingRSSI();
+		avgRSSI=((avgRSSI*7)+(nowRSSI))/8;
+		send(MsgSendingRSSI.set(avgRSSI));
+	
+		DEBUG_PRINT("TX Fail: ");
+		DEBUG_PRINT(TxFailCounter);
+		DEBUG_PRINT(" avgRSSI ");
+		DEBUG_PRINT(avgRSSI);
+		DEBUG_PRINT(" Ping ");
+		DEBUG_PRINT(EchoRuntime);
+		DEBUG_PRINT(" minPing ");
+		DEBUG_PRINT(minPingTime);
+		DEBUG_PRINT(" maxPing ");
+		DEBUG_PRINTLN(maxPingTime);		
+		
+		EchoLastSend=millis();
+		EchoTimeStamp=EchoLastSend;
+		send(MsgEchoTimeStamp.set(EchoTimeStamp));
+		GotEchoResponse=false;
+	}
+	
+	
+	if ((TimeSinceHeartBeat > (uint32_t)HEARTBEAT_INTERVAL))
+	{
+		lastHeartBeat = currentTime;
+		myHeartBeatLoop();
+	}
 }
 
- 
+void receive(const MyMessage &message)
+{
+	// DEBUG_PRINTLN("receive");
+	if (!mGetAck(message) && message.sensor == CHILD_ECHO_TIMESTAMP && message.sender == 0)
+	{
+		if (message.type == V_TEXT)
+		{
+			EchoReturn = message.getULong();
+
+			if (EchoReturn == EchoTimeStamp)
+			{
+				EchoRuntime=millis()-EchoTimeStamp;
+				GotEchoResponse=true;
+				EchoTimeStamp=0;
+			}			
+		}
+	}
+	
+	// else
+	// {
+		// DEBUG_PRINTLN("unknown receive");
+		
+		// DEBUG_PRINT("sensor: ");
+		// DEBUG_PRINTLN(message.sensor);
+
+		// DEBUG_PRINT("mGetPayloadType: ");
+		// DEBUG_PRINTLN(mGetPayloadType(message));
+		
+		// DEBUG_PRINT("sender: ");
+		// DEBUG_PRINTLN(message.sender);
+
+		// DEBUG_PRINT("version: ");
+		// DEBUG_PRINTLN(message.version);
+		
+		// DEBUG_PRINT("getByte: ");
+		// uint8_t Temp = message.getByte();
+		// DEBUG_PRINTLN(Temp);
+	// }
+	// DEBUG_PRINTLN("receive");
+	
+	
+	// DEBUG_PRINT("sensor: ");
+	// DEBUG_PRINTLN(message.sensor);
+
+	// DEBUG_PRINT("mGetPayloadType: ");
+	// DEBUG_PRINTLN(mGetPayloadType(message));
+	
+	// DEBUG_PRINT("sender: ");
+	// DEBUG_PRINTLN(message.sender);
+		
+}
+
+
 // ....
 // void indication(indication_t ind)
 // {
