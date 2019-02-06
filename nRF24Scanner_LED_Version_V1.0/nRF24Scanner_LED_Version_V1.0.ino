@@ -3,12 +3,12 @@
 // Enable and select radio type attached
 #define MY_RADIO_RF24
 #define MY_NODE_ID 210
-#define MY_PARENT_NODE_ID 50
-// #define MY_PARENT_NODE_ID 0
+// #define MY_PARENT_NODE_ID 50
+#define MY_PARENT_NODE_ID 0
 #define MY_PARENT_NODE_IS_STATIC
 
 
-#define MY_RF24_CHANNEL 96									// Nach Testphase deaktivieren, damit Kanal 76 aktiv wird
+// #define MY_RF24_CHANNEL 96									// Nach Testphase deaktivieren, damit Kanal 76 aktiv wird
 
 #define NODE_TXT "Ack Test Node"
 // #define MY_INDICATION_HANDLER
@@ -24,7 +24,7 @@
 #include <MySensors.h>
 
 #define SN 								"Ack-Tester w pRSSI"
-#define SV 								"1.0-004"
+#define SV 								"1.0-005"
 
 #define LED_PIN 						6						// Arduino pin attached to MOSFET Gate pin
 #define CHILD_ID_TEXT					0
