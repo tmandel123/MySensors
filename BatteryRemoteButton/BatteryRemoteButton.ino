@@ -29,6 +29,7 @@ RF24_PA_MAX = 0dBm
 #define MY_RADIO_RF24
 #define MY_RF24_CHANNEL 					96
 #define MY_TRANSPORT_WAIT_READY_MS 			(5000ul)
+#define MY_RF24_SANITY_CHECK
 
 #define MY_NODE_ID 							130
 #define MY_PARENT_NODE_ID 					50
@@ -37,18 +38,16 @@ RF24_PA_MAX = 0dBm
 
 
 // ###################   Node Spezifisch   #####################
-#define SKETCH_VER            				"1.0-005"        			// Sketch version
+#define SKETCH_VER            				"1.0-006"        			// Sketch version
 #define SKETCH_NAME           				"BatteryRemoteButton"   		// Optional child sensor name
 #define NODE_TXT 							"Info"
 #define CHILD_ID_TEXT						0
 
 
+#include <MySensors.h>
+#include <Servo.h>
 
-
-
-// #define MY_PASSIVE_NODE
-
-			// http://www.mathertel.de/Arduino/OneButtonLibrary.aspx Version 1.3
+			
 
 // #define BATTERY_SENSE_PIN A0
 
@@ -65,7 +64,7 @@ RF24_PA_MAX = 0dBm
 #define BUTTON_CHILD	 					2
 
 #define SEND_WAIT							40							// 20ms reicht nicht aus, dann kommt immer NACK, bei 22ms läuft es (mit Repeater sollten es 50ms sein)							
-#define REQUEST_ACK							true
+// #define REQUEST_ACK							true
 
 
 #define PRIMARY_BUTTON_PIN 					2
@@ -82,7 +81,7 @@ RF24_PA_MAX = 0dBm
 
 #include <MySensors.h>
 #include <VoltageReference.h>			// https://github.com/rlogiacco/VoltageReference Version 1.2.2
-#include <OneButton.h>		
+#include <OneButton.h>					// http://www.mathertel.de/Arduino/OneButtonLibrary.aspx Version 1.3
 #include "C:\_Lokale_Daten_ungesichert\Arduino\MySensors\CommonFunctions.h" //muss nach allen anderen #defines stehen
 
 VoltageReference vRef;
