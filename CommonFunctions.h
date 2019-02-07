@@ -21,6 +21,19 @@
 	#define PA_LEVEL_TEXT (F("RF24_PA_MIN"))
 #endif
 
+#define	BAT_VREF_MAX_VOLTATE				3150
+#define	BAT_VREF_MIN_VOLTATE				1800
+
+
+#define CHILD_OW_TEMP						10
+#define	CHILD_OW_TEMP_TEXT					(F("OW_TEMP"))
+#define CHILD_OW_CONNECTED					18
+#define	CHILD_OW_CONNECTED_TEXT				(F("OW_CON_LST"))
+#define CHILD_OW_DEV_COUNT					19
+#define	CHILD_OW_DEV_COUNT_TEXT				(F("OW_DEV_CNT"))
+#define CHILD_OW_TEMP_NAME					20
+#define	CHILD_OW_TEMP_NAME_TEXT				(F("OW_NAME"))
+
 
 #define CHILD_SERVO_STATE					20
 #define CHILD_SERVO_STATE_TEXT				(F("SERVO_STATE"))
@@ -28,10 +41,8 @@
 #define CHILD_MULTI_BUTTON 					30
 #define CHILD_MULTI_BUTTON_TEXT				(F("MLT_BUTTON"))
 
-
-
-
-
+#define CHILD_DEBUG_LEVEL					70
+#define	CHILD_DEBUG_LEVEL_TEXT				(F("DBG_LEVEL"))
 
 #define CHILD_HWTIME						90
 #define	CHILD_HWTIME_TEXT					(F("HWTIME"))
@@ -45,12 +56,26 @@
 #define	CHILD_ECHO_TIMESTAMP_TEXT			(F("ECHO_TS"))
 #define CHILD_ECHO_RUNTIME					95
 #define	CHILD_ECHO_RUNTIME_TEXT				(F("ECHO_RT"))
+#define CHILD_DEBUG_RETURN					96
+#define	CHILD_DEBUG_RETURN_TEXT				(F("DBG_RETURN"))
 #define CHILD_BAT_ANLG 						98
 #define CHILD_BAT_VREF 						99
+#define CHILD_BAT_VREF_TEXT 				(F("BAT"))
 
-MyMessage MsgMultiButton					(CHILD_MULTI_BUTTON,			V_TEXT);
+#include <VoltageReference.h>				// https://github.com/rlogiacco/VoltageReference Version 1.2.2
 
-MyMessage MsgServoState						(CHILD_SERVO_STATE,				V_TEXT);
+MyMessage MsgOwTemp							(CHILD_OW_TEMP,  				V_TEMP);			//10-17
+MyMessage MsgDebugOWConList					(CHILD_OW_CONNECTED,			V_TEXT);			//18
+MyMessage MsgDebugOWDevCount				(CHILD_OW_DEV_COUNT,			V_TEXT);			//19
+MyMessage MsgOwName							(CHILD_OW_TEMP_NAME,  			V_TEXT);			//20-27
+
+
+MyMessage MsgMultiButton					(CHILD_MULTI_BUTTON,			V_TEXT);			//30
+
+MyMessage MsgServoState						(CHILD_SERVO_STATE,				V_TEXT);			//40
+
+MyMessage MsgDebugLevel						(CHILD_DEBUG_LEVEL,				V_TEXT);			//70
+
 
 MyMessage MsgHwTime							(CHILD_HWTIME, 					V_TEXT);
 MyMessage MsgSendingRSSI					(CHILD_TX_RSSI, 				V_TEXT);
@@ -58,6 +83,11 @@ MyMessage MsgPaLevel						(CHILD_RF24_PA_LEVEL, 			V_TEXT);
 MyMessage MsgRFChannel						(CHILD_RF24_CHANNEL, 			V_TEXT);
 MyMessage MsgEchoTimeStamp					(CHILD_ECHO_TIMESTAMP, 			V_TEXT);
 MyMessage MsgEchoRunTime					(CHILD_ECHO_RUNTIME, 			V_TEXT);
+MyMessage MsgDebugReturnString				(CHILD_DEBUG_RETURN, 			V_TEXT);
+
+MyMessage MsgBatvRefValue					(CHILD_BAT_VREF,				V_VOLTAGE);			//99
+
+VoltageReference vRef;
 
 int16_t 	avgRSSI = -29;
 int16_t 	nowRSSI = 0;
@@ -67,16 +97,19 @@ int16_t 	nowRSSI = 0;
 void myPresentation()
 {
 	
-	
-	
-	present(CHILD_HWTIME, 			S_INFO, 	CHILD_HWTIME_TEXT);
-	present(CHILD_TX_RSSI, 			S_INFO, 	CHILD_TX_RSSI_TEXT);
-	present(CHILD_RF24_PA_LEVEL, 	S_INFO, 	CHILD_RF24_PA_LEVEL_TEXT);
-	present(CHILD_RF24_CHANNEL, 	S_INFO,		CHILD_RF24_CHANNEL_TEXT);
+	// present(CHILD_OW_CONNECTED, 	S_INFO, 			CHILD_OW_CONNECTED_TEXT);//OneWireMaster only
+	present(CHILD_HWTIME, 			S_INFO, 			CHILD_HWTIME_TEXT);
+	present(CHILD_TX_RSSI, 			S_INFO, 			CHILD_TX_RSSI_TEXT);
+	present(CHILD_RF24_PA_LEVEL, 	S_INFO, 			CHILD_RF24_PA_LEVEL_TEXT);
+	present(CHILD_RF24_CHANNEL, 	S_INFO,				CHILD_RF24_CHANNEL_TEXT);
 	#ifdef MY_ECHO_NODE
-	present(CHILD_ECHO_TIMESTAMP, 	S_INFO,		CHILD_ECHO_TIMESTAMP_TEXT);
-	present(CHILD_ECHO_RUNTIME, 	S_INFO,		CHILD_ECHO_RUNTIME_TEXT);
+	present(CHILD_ECHO_TIMESTAMP, 	S_INFO,				CHILD_ECHO_TIMESTAMP_TEXT);
+	present(CHILD_ECHO_RUNTIME, 	S_INFO,				CHILD_ECHO_RUNTIME_TEXT);
 	#endif
+	present(CHILD_DEBUG_LEVEL,	 	S_INFO,				CHILD_DEBUG_LEVEL_TEXT);
+	present(CHILD_DEBUG_RETURN, 	S_INFO,				CHILD_DEBUG_RETURN_TEXT);
+	present(CHILD_BAT_VREF,		 	S_MULTIMETER,		CHILD_BAT_VREF_TEXT);
+	
 }
 
 void myHeartBeatLoop()
@@ -98,9 +131,7 @@ void myHeartBeatLoop()
 	// DEBUG_PRINT("avgRSSI: ");
 	// DEBUG_PRINTLN(avgRSSI);
 	send(MsgSendingRSSI.set(avgRSSI));
-	//CHILD_RF24_PA_LEVEL
 	send(MsgPaLevel.set(PA_LEVEL_TEXT));
-	//CHILD_RF24_CHANNEL
 	send(MsgRFChannel.set(MY_RF24_CHANNEL));
 
 }
@@ -192,4 +223,84 @@ void PrintRF24Transport()
 	
 	DEBUG_PRINT(F("RF24_getSendingRSSI:  "));
 	DEBUG_PRINTLN(RF24_getSendingRSSI());
+}
+
+void BatteryVRef()
+{
+	uint8_t batteryPcntVcc;
+	float batVoltage;
+	uint16_t vcc = vRef.readVcc(); //5000 oder 3000 mA
+	// uint16_t vccCorrect = (vcc * float(BAT_VREF_CORRECTION_VALUE));
+	
+	DEBUG_PRINT("vcc vor constrain: ");
+	DEBUG_PRINTLN(vcc);
+
+	vcc=constrain(vcc, BAT_VREF_MIN_VOLTATE, BAT_VREF_MAX_VOLTATE);
+	batteryPcntVcc = map(vcc, BAT_VREF_MIN_VOLTATE, BAT_VREF_MAX_VOLTATE, 0, 100); 
+
+	DEBUG_PRINT("vcc: ");
+	DEBUG_PRINTLN(vcc);
+	
+	batVoltage  = (float)vcc / 1000;
+
+	DEBUG_PRINT("batVoltage: ");
+	DEBUG_PRINTLN(batVoltage);
+	
+	sendBatteryLevel(batteryPcntVcc);
+	send(MsgBatvRefValue.set(batVoltage,3));
+}
+
+void showEEpromChar()
+{
+	// debugMessage("showEEprom", "");
+	uint8_t counter=0;
+	uint8_t Zeichen;
+	for (uint8_t i = 0; i<16; i++)
+	{
+		for (uint8_t j = 0; j<16; j++)
+		{
+			Zeichen=loadState(counter);
+			if ((Zeichen >= (uint8_t)MIN_ASCII_CHAR ) and (Zeichen <= (uint8_t)MAX_ASCII_CHAR))
+			{
+				Serial.print((char)Zeichen);
+			}
+			else//not printable chars	
+			{
+				Serial.print('X');
+			}
+			
+			if (j < 15)
+			{
+				Serial.print("-");
+			}
+			counter++;
+		}	
+		Serial.println("");
+	}
+}
+
+void showEEpromHex()
+{
+	// debugMessage("showEEprom", "");
+	uint8_t counter=0;
+	uint8_t Zeichen;
+	for (uint8_t i = 0; i<16; i++)
+	{
+		for (uint8_t j = 0; j<16; j++)
+		{
+			Zeichen=loadState(counter);
+			if (Zeichen < 16)
+			{
+				Serial.print("0");
+				
+			}
+			Serial.print(String(Zeichen,HEX));
+			if (j < 15)
+			{
+				Serial.print("-");
+			}
+			counter++;
+		}	
+		Serial.println("");
+	}
 }
