@@ -10,8 +10,7 @@ Vorgesehen sind 2 Umgebungen: Produktion und Test
 Produktion = Kanal 96
 Test = Kanal 76
 
-Updates der Nodes erfolgen mit FOTA über Kanal 76 (der Reboot wird im Kanal 96 initiiert und der Bootloader startet im Standard mit Kanal 76)
-
+Updates der Nodes sollen �ber FOTA erfolgen
 
 
 
@@ -29,27 +28,27 @@ Updates der Nodes erfolgen mit FOTA über Kanal 76 (der Reboot wird im Kanal 96 
 |   | 7 |  |  |  |  |  |  |
 |   | 8 |  |  |  |  |  |  |
 |   | 9 |  |  |  |  |  |  |
-|  Temperatur | 10 | S_TEMP |  | CHILD_ID_Temp |  |  |  |
-|   | 11 | S_TEMP |  | CHILD_ID_Temp+i |  |  |  |
-|   | 12 | S_TEMP |  | CHILD_ID_Temp+i |  |  |  |
-|   | 13 | S_TEMP |  | CHILD_ID_Temp+i |  |  |  |
-|   | 14 | S_TEMP |  | CHILD_ID_Temp+i |  |  |  |
-|   | 15 | S_TEMP |  | CHILD_ID_Temp+i |  |  |  |
-|   | 16 | S_TEMP |  | CHILD_ID_Temp+i |  |  |  |
-|   | 17 | S_TEMP |  | CHILD_ID_Temp+i |  |  |  |
-|   | 18 |  |  |  |  |  |  |
-|   | 19 |  |  |  |  |  |  |
-|  Servo | 20 | S_INFO |  | CHILD_SERVO_STATE | MsgServoState | SERVO_STATE | feedback of actual Servo Position |
-|   | 21 |  |  |  |  |  |  |
-|   | 22 |  |  |  |  |  |  |
-|   | 23 |  |  |  |  |  |  |
-|   | 24 |  |  |  |  |  |  |
-|   | 25 |  |  |  |  |  |  |
-|   | 26 |  |  |  |  |  |  |
-|   | 27 |  |  |  |  |  |  |
+|  temperature | 10 | S_TEMP | V_TEMP, V_ID | CHILD_OW_TEMP | MsgOwTemp |  |  |
+|  temperature | 11 | S_TEMP | V_TEMP, V_ID | CHILD_OW_TEMP+i | MsgOwTemp |  |  |
+|  temperature | 12 | S_TEMP | V_TEMP, V_ID | CHILD_OW_TEMP+i | MsgOwTemp |  |  |
+|  temperature | 13 | S_TEMP | V_TEMP, V_ID | CHILD_OW_TEMP+i | MsgOwTemp |  |  |
+|  temperature | 14 | S_TEMP | V_TEMP, V_ID | CHILD_OW_TEMP+i | MsgOwTemp |  |  |
+|  temperature | 15 | S_TEMP | V_TEMP, V_ID | CHILD_OW_TEMP+i | MsgOwTemp |  |  |
+|  temperature | 16 | S_TEMP | V_TEMP, V_ID | CHILD_OW_TEMP+i | MsgOwTemp |  |  |
+|  temperature | 17 | S_TEMP | V_TEMP, V_ID | CHILD_OW_TEMP+i | MsgOwTemp |  |  |
+|  temp-debug | 18 | S_INFO | V_TEXT | CHILD_OW_CONNECTED | MsgDebugOWConList | OW_CON_LST | OneWire Connection List |
+|  temp-debug | 19 | S_INFO | V_TEXT | CHILD_OW_DEV_COUNT | MsgDebugOWDevCount | OW_DEV_CNT | number of OneWire Devices |
+|  temp-name | 20 | S_INFO | V_TEXT | CHILD_OW_TEMP_NAME | MsgOwName | OW_NAME |  |
+|  temp-name | 21 | S_INFO | V_TEXT | CHILD_OW_TEMP_NAME+i | MsgOwName | OW_NAME |  |
+|  temp-name | 22 | S_INFO | V_TEXT | CHILD_OW_TEMP_NAME+i | MsgOwName | OW_NAME |  |
+|  temp-name | 23 | S_INFO | V_TEXT | CHILD_OW_TEMP_NAME+i | MsgOwName | OW_NAME |  |
+|  temp-name | 24 | S_INFO | V_TEXT | CHILD_OW_TEMP_NAME+i | MsgOwName | OW_NAME |  |
+|  temp-name | 25 | S_INFO | V_TEXT | CHILD_OW_TEMP_NAME+i | MsgOwName | OW_NAME |  |
+|  temp-name | 26 | S_INFO | V_TEXT | CHILD_OW_TEMP_NAME+i | MsgOwName | OW_NAME |  |
+|  temp-name | 27 | S_INFO | V_TEXT | CHILD_OW_TEMP_NAME+i | MsgOwName | OW_NAME |  |
 |   | 28 |  |  |  |  |  |  |
 |   | 29 |  |  |  |  |  |  |
-|  MultiButton | 30 |  |  |  |  |  | Button sends multiple states depending on click (doubleclick, hold etc.) |
+|  MultiButton | 30 | S_INFO | V_TEXT | CHILD_MULTI_BUTTON | MsgMultiButton |  | Button sends multiple states depending on click (doubleclick, hold etc.) |
 |  Button | 31 |  |  |  |  |  |  |
 |   | 32 |  |  |  |  |  |  |
 |   | 33 |  |  |  |  |  |  |
@@ -59,7 +58,7 @@ Updates der Nodes erfolgen mit FOTA über Kanal 76 (der Reboot wird im Kanal 96 
 |   | 37 |  |  |  |  |  |  |
 |   | 38 |  |  |  |  |  |  |
 |   | 39 |  |  |  |  |  |  |
-|   | 40 |  |  |  |  |  |  |
+|  Servo | 40 | S_INFO | V_TEXT | CHILD_SERVO_STATE | MsgServoState | SERVO_STATE | feedback of actual Servo Position |
 |   | 41 |  |  |  |  |  |  |
 |   | 42 |  |  |  |  |  |  |
 |   | 43 |  |  |  |  |  |  |
@@ -89,36 +88,36 @@ Updates der Nodes erfolgen mit FOTA über Kanal 76 (der Reboot wird im Kanal 96 
 |   | 67 |  |  |  |  |  |  |
 |   | 68 |  |  |  |  |  |  |
 |   | 69 |  |  |  |  |  |  |
-|   | 70 |  |  |  |  |  |  |
-|   | 71 |  |  |  |  |  |  |
-|   | 72 |  |  |  |  |  |  |
-|   | 73 |  |  |  |  |  |  |
-|   | 74 |  |  |  |  |  |  |
+|  Debug SET | 70 | S_INFO | V_TEXT | CHILD_DEBUG_LEVEL | MsgDebugLevel | DBG_LEVEL | Number of debug level (0=off) |
+|   | 71 | S_INFO | V_TEXT | CHILD_ANLG_TH_MIN | MsgThresholdMin | TH_MIN | threshold min |
+|   | 72 | S_INFO | V_TEXT | CHILD_ANLG_TH_MAX | MsgThresholdMax | TH_MAX | threshold max |
+|   | 73 | S_INFO | V_TEXT | CHILD_KEY_VALUE_SETTER | MsgKeyValue | KEY_VAL | key=value (child has to care about what to do) Name of Thermometer etc. |
+|   | 74 | S_INFO | V_TEXT |  |  |  | EchoWaitTime |
 |   | 75 |  |  |  |  |  |  |
 |   | 76 |  |  |  |  |  |  |
 |   | 77 |  |  |  |  |  |  |
 |   | 78 |  |  |  |  |  |  |
 |   | 79 |  |  |  |  |  |  |
-|  Debug Infos | 80 | S_MULTIMETER | V_VOLTAGE | CHILD_BAT_ANLG | BatAnalogValue |  | sendBatteryLevel() |
-|   | 81 | S_MULTIMETER | V_VOLTAGE | CHILD_BAT_VREF | BatvRefValue | - | sendBatteryLevel() |
-|   | 82 | S_INFO | V_TEXT | CHILD_DEBUG_LEVEL |  | DBG_LEVEL | Number of debug level (0=off) |
-|   | 83 | S_INFO | V_TEXT | CHILD_ANLG_TH_MIN |  | TH_MIN | threshold min |
-|   | 84 | S_INFO | V_TEXT | CHILD_ANLG_TH_MAX |  | TH_MAX | threshold max |
+|   | 80 |  |  |  |  |  |  |
+|   | 81 |  |  |  |  |  |  |
+|   | 82 |  |  |  |  |  |  |
+|   | 83 |  |  |  |  |  |  |
+|   | 84 |  |  |  |  |  |  |
 |   | 85 |  |  |  |  |  |  |
 |   | 86 |  |  |  |  |  |  |
 |   | 87 |  |  |  |  |  |  |
 |   | 88 |  |  |  |  |  |  |
-|   | 89 |  |  |  |  |  |  |
-|   | 90 | S_INFO | V_TEXT | CHILD_HWTIME | MsgHwTime | HWTIME | millis() calculated to days since startup |
-|   | 91 | S_INFO | V_TEXT | CHILD_TX_RSSI | MsgSendingRSSI | TX_RSSI | RF24_getSendingRSSI() |
-|   | 92 | S_INFO | V_TEXT | CHILD_RF24_PA_LEVEL | MsgPaLevel | PA_LEVEL |  |
-|   | 93 | S_INFO | V_TEXT | CHILD_RF24_CHANNEL | MsgRFChannel | RF_CHANNEL |  |
-|   | 94 | S_INFO | V_TEXT | CHILD_ECHO_TIME | MsgEchoTime | ECHO |  |
-|   | 95 | S_INFO | V_TEXT | CHILD_ECHO_RUNTIME | MsgEchoRunTime | ECHO_TIME |  |
-|   | 96 |  |  |  |  |  |  |
+|  PING ? | 89 |  |  |  |  |  | Node2Node Ping |
+|  Debug Infos | 90 | S_INFO | V_TEXT | CHILD_HWTIME | MsgHwTime | HWTIME | millis() calculated to days since startup |
+|  Debug Infos | 91 | S_INFO | V_TEXT | CHILD_TX_RSSI | MsgSendingRSSI | TX_RSSI | RF24_getSendingRSSI() |
+|  Debug Infos | 92 | S_INFO | V_TEXT | CHILD_RF24_PA_LEVEL | MsgPaLevel | PA_LEVEL | RF24_PA_MAX |
+|  Debug Infos | 93 | S_INFO | V_TEXT | CHILD_RF24_CHANNEL | MsgRFChannel | RF_CHANNEL | 96, 76 |
+|  Debug Infos | 94 | S_INFO | V_TEXT | CHILD_ECHO_TIMESTAMP | MsgEchoTimeStamp | ECHO_TS | TimeStamp |
+|  Debug Infos | 95 | S_INFO | V_TEXT | CHILD_ECHO_RUNTIME | MsgEchoRunTime | ECHO_RT | RunTime |
+|  Debug Infos | 96 | S_INFO | V_TEXT | CHILD_DEBUG_RETURN | MsgDebugReturnString | DBG_RETURN | "Speicher EEPROM ist voll", SaveOwID |
 |   | 97 |  |  |  |  |  |  |
-|   | 98 |  |  |  |  |  |  |
-|   | 99 |  |  |  |  |  |  |
+|  Battery | 98 | S_MULTIMETER | V_VOLTAGE | CHILD_BAT_ANLG | BatAnalogValue | - | sendBatteryLevel() |
+|  Battery | 99 | S_MULTIMETER | V_VOLTAGE | CHILD_BAT_VREF | MsgBatvRefValue | - | sendBatteryLevel() |
 
 
 
