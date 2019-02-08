@@ -45,10 +45,10 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 
 
 // ###################   Node Spezifisch   #####################
-#define SKETCH_VER            				"1.7-001"        			// Sketch version
+#define SKETCH_VER            				"1.7-003"        			// Sketch version
 #define SKETCH_NAME           				"OneWireMaster"   		// Optional child sensor name
 
-#define HEARTBEAT_INTERVAL        			600000        //später alle 5 Minuten, zum Test alle 30 Sekunden
+// #define HEARTBEAT_INTERVAL        			600000        //später alle 5 Minuten, zum Test alle 30 Sekunden
 
 
 #define ONE_WIRE_BUS 4 // Pin where dallas sensor is connected 
@@ -59,23 +59,23 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 // #define CHILD_ID_DEBUG          			2							// Debug setzen und lesen
 
 #define OW_RESOLUTION						10
-#define SLEEP_TIME							60000
+#define SLEEP_TIME							20000
 #define MAX_ATTACHED_DS18B20      			8							//mehr als 8 funktioniert nicht mit den vorhandenen Methoden
 
 #define EEPROM_DEVICE_NAME_LENGTH   		8
 #define EEPROM_DEVICE_ID_LENGTH     		8
 #define EEPROM_DEVICE_CNT_STEP				(EEPROM_DEVICE_NAME_LENGTH+EEPROM_DEVICE_ID_LENGTH) //Klammer könnte evtl. weg
 //Werte für 
-#define EEPROM_DEVICE_DEBUG_Level   		0     // DebugLevel, die nächsten 7 uint8_ts sind für Debug reserviert
+#define EEPROM_DEVICE_DEBUG_Level   		0		// DebugLevel, die nächsten 7 uint8_ts sind für Debug reserviert
+#define EEPROM_DEVICE_CHECKSUM				1		// Checksum of connected devices (first + second byte from Device ID)
 #define EEPROM_DEVICE_DEBUG_7 				7
 
-#define EEPROM_DEVICE_TEMP_ID_START			EEPROM_DEVICE_DEBUG_7+1
+#define EEPROM_DEVICE_TEMP_ID_START			EEPROM_DEVICE_DEBUG_7+1+8
 #define EEPROM_DEVICE_TEMP_NAME_START		EEPROM_DEVICE_TEMP_ID_START+EEPROM_DEVICE_ID_LENGTH
 
-#define MAX_DEBUG_LEVEL         			4
+#define MAX_DEBUG_LEVEL         			9
 
-#define	MIN_ASCII_CHAR						32
-#define MAX_ASCII_CHAR						128
+
 
 #define	WITH_BATTERIE
 
@@ -94,28 +94,48 @@ DeviceAddress tempDeviceAddress; 		//typedef uint8_t DeviceAddress[8];
 
 
 char cThermoName[]="-8Name8-";
-char bThermoKnown[]="NNNNNNNN";
+char cThermoKnown[]="NNNNNNNN";
 
 uint8_t debugLevel = 0; 
+uint8_t DevCheckSum = 0; 
+uint8_t DevLastCheckSum = 0; 
+
 // debugLevel switches
-// 0 	off
-// 1
-// 2
-// 3	scanne nach aktuell angeschlossenen OwDevices und gebe für die restlichen den Speicher im EEPROM frei
-// 4 	clear all EEprom, switsche danach automatisch zurück auf debugLevel=0
+//	0 	off
+//	1	showEEpromHex()
+//	2
+//	3	scanne nach aktuell angeschlossenen OwDevices und gebe für die restlichen den Speicher im EEPROM frei
+//	4 	clear all EEprom, switsche danach automatisch zurück auf debugLevel=0
+//	5	saveState(EEPROM_DEVICE_TEMP_ID_START, 65);// OwID an Index 1 erste Stelle ungültig machen
+//	9	Reboot
 
 
 void preHwInit() 
 {
 	DEBUG_SERIAL(MY_BAUD_RATE);
-	delay(18); // bei weniger als 18ms kommt soetwas hier: p⸮Y⸮%⸮⸮⸮⸮ 
+	delay(20); // bei weniger als 18ms kommt soetwas hier: p⸮Y⸮%⸮⸮⸮⸮ 
 	DEBUG_PRINTLN("preHwInit");
 }
 
 void before()
 {
 	DEBUG_PRINTLN("before");
-
+	
+	
+	debugLevel = loadState(EEPROM_DEVICE_DEBUG_Level); 	//8 Bit
+	DevCheckSum = loadState(EEPROM_DEVICE_CHECKSUM); 	//8 Bit
+	DevLastCheckSum = DevCheckSum;
+	if (debugLevel>MAX_DEBUG_LEVEL)
+	{
+		debugLevel=0;
+		// DEBUG_PRINTLN(F("Save: debugLevel to 0"));
+		saveState(EEPROM_DEVICE_DEBUG_Level, debugLevel);//8 Bit
+	}
+	DEBUG_PRINT(F("DevCheckSum level fetched from EEPROM "));
+	DEBUG_PRINTLN(DevCheckSum);
+	
+	
+	
 	// Startup up the OneWire library
 	sensors.begin();
 	vRef.begin();
@@ -126,7 +146,6 @@ void before()
 	// ClearEeprom();
 	sortOwAdresses();//prüft das EEPROM, welche TempAddress für OW Geräte bekannt sind und waren
 	checkResolution();
-	// saveState(EEPROM_DEVICE_TEMP_ID_START, 65);// OwID an Index 1 erste Stelle ungültig machen
 
 }
 
@@ -135,30 +154,31 @@ void setup()
 {
 	DEBUG_PRINTLN("Setup");
 	sensors.setWaitForConversion(false);//damit mysensors nicht blockiert
-	debugLevel = loadState(EEPROM_DEVICE_DEBUG_Level); //8 Bit
-	if (debugLevel>MAX_DEBUG_LEVEL)
-	{
-		debugLevel=0;
-		// DEBUG_PRINTLN(F("Save: debugLevel to 0"));
-		saveState(EEPROM_DEVICE_DEBUG_Level, debugLevel);//8 Bit
-	}
-	// DEBUG_PRINT(F("Debug level fetched from EEPROM "));
-	// DEBUG_PRINTLN(debugLevel);
+
 }
 
 void presentation()
 {
 	DEBUG_PRINTLN("presentation...");
+	char ChildTextTemp[sizeof(CHILD_OW_TEMP_TEXT)+1]=CHILD_OW_TEMP_TEXT;
+	char ChildTextName[sizeof(CHILD_OW_TEMP_NAME_TEXT)+1]=CHILD_OW_TEMP_NAME_TEXT;
+	char SendString[25] = ""; //mehr als 25 Zeichen werden nicht übertragen
+	
 	mySendSketchInfo();
 	myPresentation();
 	present(CHILD_OW_CONNECTED, 	S_INFO, 			CHILD_OW_CONNECTED_TEXT);
+	present(CHILD_OW_DEV_COUNT, 	S_INFO, 			CHILD_OW_DEV_COUNT_TEXT);
+
 	// present(CHILD_ID_DEBUG, S_CUSTOM);
 	for (uint8_t i = 0; i < MAX_ATTACHED_DS18B20; i++)
 	{
-		if (bThermoKnown[i] == 'J')//weitermachen, wenn 1
+		if (cThermoKnown[i] == 'Y')//weitermachen, wenn Y
 		{
-			present(CHILD_OW_TEMP+i, S_TEMP);
-			present(CHILD_OW_TEMP_NAME+i, S_INFO);
+			DEBUG_PRINTLN("sprintf");
+			sprintf(SendString, "%s_%d",ChildTextTemp,i);
+			present(CHILD_OW_TEMP+i, 		S_TEMP,		SendString);
+			sprintf(SendString, "%s_%d",ChildTextName,i);
+			present(CHILD_OW_TEMP_NAME+i, 	S_INFO, 	SendString);
 			
 		}
 	}
@@ -167,19 +187,24 @@ void presentation()
 void loop()//ToDo: getResolution je Sensor-Adresse, wenn anders als festgeletzte Auflösung, dann setResolution (dies wird dauerhaft im EEPROM vom OneWire Gerät gespeichert)
 {
 	sendHeartbeat();  
-
+	myHeartBeatLoop();
 	sortOwAdresses();
-
+	
 	sensors.requestTemperatures();
 	//int16_t conversionTime = sensors.millisToWaitForConversion(sensors.getResolution());
-	wait(750);//conversionTime liefert auch 750 ms zurück
-	// wait(750);//conversionTime liefert auch 750 ms zurück
-
+	wait(750);//conversionTime usually is 750 ms 
+	if (DevCheckSum != DevLastCheckSum)	//New Devices on OW Bus have to be presented
+	{
+		DEBUG_PRINTLN("DevCheckSum != DevLastCheckSum");
+		DevLastCheckSum = DevCheckSum;
+		saveState(EEPROM_DEVICE_CHECKSUM, DevCheckSum);
+		presentation();
+	}
 
 
 	for (uint8_t i = 0; i < MAX_ATTACHED_DS18B20; i++)
 	{
-		if (bThermoKnown[i] == 'J')//weitermachen, wenn 1
+		if (cThermoKnown[i] == 'Y')//weitermachen, wenn 1
 		{
 			for (uint8_t j=0;j<EEPROM_DEVICE_ID_LENGTH;j++)
 			{
@@ -194,21 +219,16 @@ void loop()//ToDo: getResolution je Sensor-Adresse, wenn anders als festgeletzte
 				// send(msgOwID.setSensor(CHILD_OW_TEMP+i).set(tempDeviceAddress,8));
 				LoadName(i);//Load from EEPROM to volatile char cThermoName
 				// send(MsgOwName.setSensor(CHILD_OW_TEMP+i).set(ArrayToChar8(cThermoName)));
-				DEBUG_PRINT("OW Name: ");
-				DEBUG_PRINTLN(cThermoName);
+				// DEBUG_PRINT("OW Name: ");
+				// DEBUG_PRINTLN(cThermoName);
 				send(MsgOwName.setSensor(CHILD_OW_TEMP_NAME+i).set(cThermoName));
 			}
 		}
 	}
 
-
 	send(MsgDebugLevel.set(debugLevel));
-	
-	send(MsgDebugOWConList.set(bThermoKnown));
-	// send(MsgDebugOWConList.set(ArrayToChar8(bThermoKnown)));
-	
+	send(MsgDebugOWConList.set(cThermoKnown));
 
-	
 
 	BatteryVRef();
 	
@@ -223,7 +243,7 @@ void checkResolution()//schreibt die Temperatur Auflösung ins EEPROM des DS18B2
 	DEBUG_PRINTLN("checkResolution");
 	for (uint8_t i = 0; i < MAX_ATTACHED_DS18B20; i++)
 	{
-		if (bThermoKnown[i] == 'J')//weitermachen, wenn 1
+		if (cThermoKnown[i] == 'Y')//weitermachen, wenn 1
 		{
 			for (uint8_t j=0;j<EEPROM_DEVICE_ID_LENGTH;j++)
 			{
@@ -254,12 +274,14 @@ void sortOwAdresses()
 	uint8_t Index=0;
 	uint8_t DeviceCounter=0;
 	uint8_t nextFreeAddress=0;
+	uint8_t thisDevCheckSum=0;
 
 	DEBUG_PRINTLN("Looking for OW Devices");
 	while (oneWire.search(tempDeviceAddress))
 	{
 		DEBUG_PRINT("Found OwID: ");
 		DEBUG_PRINTLN(DevAddressToHex(tempDeviceAddress));
+
 		// Serial.println(String(*tempDeviceAddress));
 		// DEBUG_PRINT("DeviceCounter: ");
 		// DEBUG_PRINTLN(DeviceCounter);	
@@ -269,7 +291,7 @@ void sortOwAdresses()
 			if (Index < MAX_ATTACHED_DS18B20)
 			{
 				
-				bThermoKnown[Index]='J';
+				cThermoKnown[Index]='Y';
 			}
 			else//owID wurde im EEPROM nicht gefunden und sollte deshalb gespeichert werden
 			{
@@ -278,12 +300,12 @@ void sortOwAdresses()
 				{
 					send(MsgDebugReturnString.set(F("Neues OW Device")));
 					SaveOwID(nextFreeAddress,tempDeviceAddress);
-					bThermoKnown[nextFreeAddress]='J';
+					cThermoKnown[nextFreeAddress]='Y';
 				}
 				else
 				{
-					bThermoKnown[nextFreeAddress]='N';
-					send(MsgDebugReturnString.set("F(Speicher EEPROM ist voll"));
+					cThermoKnown[nextFreeAddress]='N';
+					send(MsgDebugReturnString.set(F("Speicher EEPROM ist voll")));
 				}
 			}
 		}
@@ -291,15 +313,26 @@ void sortOwAdresses()
 		{
 			DEBUG_PRINTLN("OneWire Bus ist ueberfuellt");
 		}
+		thisDevCheckSum=thisDevCheckSum+tempDeviceAddress[1]+tempDeviceAddress[2]+Index;
+		DEBUG_PRINT("New Checksum: ");
+		DEBUG_PRINTLN(thisDevCheckSum);
+		
 		DeviceCounter++;
 	}
+	if (DeviceCounter == 0)// No Devices connected to OW Bus
+	{
+		sprintf(cThermoKnown,"%s", "NNNNNNNN");
+	}
+	DEBUG_PRINT("DevCheckSum: ");
+	DEBUG_PRINTLN(DevCheckSum);
+	DevCheckSum=thisDevCheckSum;
 	send(MsgDebugOWDevCount.set(DeviceCounter)); //Update controller with number of found devices
 }
 
 
 void SaveOwID(uint8_t nextFreeAddress, DeviceAddress tempDeviceAddress)
 {
-	send(MsgDebugReturnString.set("SaveOwID"));
+	send(MsgDebugReturnString.set(F("SaveOwID")));
 	uint8_t tempAddressIndex=EEPROM_DEVICE_TEMP_ID_START+nextFreeAddress*EEPROM_DEVICE_CNT_STEP;
 	for (uint8_t j = 0; j<EEPROM_DEVICE_ID_LENGTH; j++)
 	{
@@ -377,8 +410,9 @@ uint8_t getNextFreeEepromAddress()
 void ClearEeprom()
 {
 	// debugMessage("ClearEeprom", "");
-	send(MsgDebugReturnString.set("EEPROM cleared"));
-	for (uint8_t i = EEPROM_DEVICE_TEMP_ID_START; i < EEPROM_DEVICE_TEMP_ID_START+MAX_ATTACHED_DS18B20*EEPROM_DEVICE_CNT_STEP; i++)
+	send(MsgDebugReturnString.set(F("EEPROM cleared")));
+	// for (uint8_t i = EEPROM_DEVICE_TEMP_ID_START; i < EEPROM_DEVICE_TEMP_ID_START+MAX_ATTACHED_DS18B20*EEPROM_DEVICE_CNT_STEP; i++)
+	for (uint8_t i = 3; i < EEPROM_DEVICE_TEMP_ID_START+MAX_ATTACHED_DS18B20*EEPROM_DEVICE_CNT_STEP; i++)
 	{
 		Serial.print("Clearing Pos: "); 
 		Serial.println(i);
@@ -402,7 +436,7 @@ void receive(const MyMessage &message)
 	// debugMessage("receive: ", String(message.sensor));
 	for (uint8_t i = 0; i < MAX_ATTACHED_DS18B20; i++)//Speichern der Namen für die DS18B20 Devices
 	{
-		if (bThermoKnown[i] == 'J')//weitermachen, wenn J // "J" funktioniert nicht 'J' schon
+		if (cThermoKnown[i] == 'Y')//weitermachen, wenn Y // "Y" funktioniert nicht 'Y' schon
 		{
 			if (message.sensor == CHILD_OW_TEMP_NAME+i)
 			{
@@ -414,7 +448,7 @@ void receive(const MyMessage &message)
 						// debugMessage("got V_VAR1: ", String(charAddr8));
 						// SaveName(i,String(charAddr8));
 						SaveName(i,message.getString());
-						send(MsgDebugLevel.set(debugLevel));
+						
 					}
 				}
 			}
@@ -432,15 +466,33 @@ void receive(const MyMessage &message)
 			{
 				// debugLevel = message.getULong();
 				debugLevel = message.getByte();
+				if (debugLevel == 3)
+				{
+					send(MsgDebugReturnString.set(F("showEEpromHex")));
+					showEEpromHex();
+				}
 				if (debugLevel == 4)
 				{
 					ClearEeprom();
 					debugLevel=0;
+				
+					saveState(EEPROM_DEVICE_DEBUG_Level, debugLevel);//8 Bit
+					send(MsgDebugLevel.set(debugLevel));
+					#ifdef SER_DEBUG
+						showEEpromHex();
+					#endif
+					hwReboot();
 				}
-				saveState(EEPROM_DEVICE_DEBUG_Level, debugLevel);//8 Bit
-				#ifdef SER_DEBUG
-				showEEpromHex();
-				#endif
+				if (debugLevel == 5)
+				{
+					send(MsgDebugReturnString.set(F("Dbg3 Destroy OWID 0")));
+					saveState(EEPROM_DEVICE_TEMP_ID_START, 65);// OwID an Index 1 erste Stelle ungültig machen
+				}				
+				if (debugLevel == 9)
+				{
+					send(MsgDebugReturnString.set(F("hwReboot")));
+					hwReboot();
+				}
 			}
 			break;
 			// case V_VAR2: 
@@ -468,23 +520,34 @@ void LoadName(uint8_t deviceIndex)//lädt in die globale Variable cThermoName vo
 	{
 		// debugMessage("EepromIndex: ",String(EepromIndex+i));
 		cThermoName[i]=loadState(EepromIndex+i); // von i (deviceIndex+0 bis deviceIndex+7) nach 0-7 kopieren ; i-deviceIndex ergibt 0-7
-		if (cThermoName[i] < (char)MIN_ASCII_CHAR || cThermoName[i] > (char)MAX_ASCII_CHAR)//nur druckbare ASCII Zeichen zulassen
+		if (((uint8_t)cThermoName[i] == 0xFF) || ((uint8_t)cThermoName[i] == 0x00))
 		{
+			cThermoName[i]=' ';
+		}
+		
+		if (((uint8_t)cThermoName[i] >= (uint8_t)MIN_ASCII_CHAR ) and ((uint8_t)cThermoName[i] <= (uint8_t)MAX_ASCII_CHAR))
+		{
+			// DEBUG_PRINT("OK: ");
+			// DEBUG_PRINTLN((char)cThermoName[i]);			
+		}
+		else
+		{
+			
 			// DEBUG_PRINT("cThermoName was: ");
 			// DEBUG_PRINTLN((char)cThermoName[i]);
 			cThermoName[i]='-'; // 45="-"
 			// DEBUG_PRINT("cThermoName replace: ");
-			// DEBUG_PRINTLN((char)cThermoName[i]);
+			// DEBUG_PRINTLN((char)cThermoName[i]);		
 		}
 		
 	}
-	// DEBUG_PRINTLN(String(cThermoName));
+	// DEBUG_PRINTLN(cThermoName);
 }
 
 
 void SaveName(uint8_t deviceIndex, String sName)
 {
-	send(MsgDebugReturnString.set("SaveName"));
+	send(MsgDebugReturnString.set(F("SaveName")));
 	// debugMessage("SaveName für ID: ",String(deviceIndex,DEC));
 	uint8_t EepromIndex=EEPROM_DEVICE_TEMP_NAME_START+deviceIndex*EEPROM_DEVICE_CNT_STEP;
 	// debugMessage("Freie Adresse an :",String(EepromIndex,DEC));
