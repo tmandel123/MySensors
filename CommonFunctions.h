@@ -24,43 +24,46 @@
 #define	BAT_VREF_MAX_VOLTATE				3150
 #define	BAT_VREF_MIN_VOLTATE				1800
 
+#define	MIN_ASCII_CHAR						32
+#define MAX_ASCII_CHAR						128
+
 
 #define CHILD_OW_TEMP						10
-#define	CHILD_OW_TEMP_TEXT					(F("OW_TEMP"))
+#define	CHILD_OW_TEMP_TEXT					("OW_Temp")			//flashhelper is not working with functions in OneWireMaster.ino
 #define CHILD_OW_CONNECTED					18
-#define	CHILD_OW_CONNECTED_TEXT				(F("OW_CON_LST"))
+#define	CHILD_OW_CONNECTED_TEXT				(F("OW_Con_Lst"))
 #define CHILD_OW_DEV_COUNT					19
-#define	CHILD_OW_DEV_COUNT_TEXT				(F("OW_DEV_CNT"))
+#define	CHILD_OW_DEV_COUNT_TEXT				(F("OW_Dev_Cnt"))
 #define CHILD_OW_TEMP_NAME					20
-#define	CHILD_OW_TEMP_NAME_TEXT				(F("OW_NAME"))
+#define	CHILD_OW_TEMP_NAME_TEXT				("OW_Name")			//flashhelper is not working with functions in OneWireMaster.ino
 
 
 #define CHILD_SERVO_STATE					20
-#define CHILD_SERVO_STATE_TEXT				(F("SERVO_STATE"))
+#define CHILD_SERVO_STATE_TEXT				(F("Servo_State"))
 
 #define CHILD_MULTI_BUTTON 					30
-#define CHILD_MULTI_BUTTON_TEXT				(F("MLT_BUTTON"))
+#define CHILD_MULTI_BUTTON_TEXT				(F("Mlt_Button"))
 
 #define CHILD_DEBUG_LEVEL					70
-#define	CHILD_DEBUG_LEVEL_TEXT				(F("DBG_LEVEL"))
+#define	CHILD_DEBUG_LEVEL_TEXT				(F("Dbg_Level"))
 
 #define CHILD_HWTIME						90
-#define	CHILD_HWTIME_TEXT					(F("HWTIME"))
+#define	CHILD_HWTIME_TEXT					(F("HwTime"))
 #define CHILD_TX_RSSI						91
 #define	CHILD_TX_RSSI_TEXT					(F("TX_RSSI"))
 #define CHILD_RF24_PA_LEVEL					92
-#define	CHILD_RF24_PA_LEVEL_TEXT			(F("PA_LEVEL"))
+#define	CHILD_RF24_PA_LEVEL_TEXT			(F("PA_Level"))
 #define CHILD_RF24_CHANNEL					93
-#define	CHILD_RF24_CHANNEL_TEXT				(F("RF_CHANNEL"))
+#define	CHILD_RF24_CHANNEL_TEXT				(F("RF_Channel"))
 #define CHILD_ECHO_TIMESTAMP				94
-#define	CHILD_ECHO_TIMESTAMP_TEXT			(F("ECHO_TS"))
+#define	CHILD_ECHO_TIMESTAMP_TEXT			(F("Echo_TS"))
 #define CHILD_ECHO_RUNTIME					95
-#define	CHILD_ECHO_RUNTIME_TEXT				(F("ECHO_RT"))
+#define	CHILD_ECHO_RUNTIME_TEXT				(F("Echo_RT"))
 #define CHILD_DEBUG_RETURN					96
-#define	CHILD_DEBUG_RETURN_TEXT				(F("DBG_RETURN"))
+#define	CHILD_DEBUG_RETURN_TEXT				(F("Dbg_Return"))
 #define CHILD_BAT_ANLG 						98
 #define CHILD_BAT_VREF 						99
-#define CHILD_BAT_VREF_TEXT 				(F("BAT"))
+#define CHILD_BAT_VREF_TEXT 				(F("Bat"))
 
 #include <VoltageReference.h>				// https://github.com/rlogiacco/VoltageReference Version 1.2.2
 
@@ -232,19 +235,19 @@ void BatteryVRef()
 	uint16_t vcc = vRef.readVcc(); //5000 oder 3000 mA
 	// uint16_t vccCorrect = (vcc * float(BAT_VREF_CORRECTION_VALUE));
 	
-	DEBUG_PRINT("vcc vor constrain: ");
-	DEBUG_PRINTLN(vcc);
+	// DEBUG_PRINT("vcc vor constrain: ");
+	// DEBUG_PRINTLN(vcc);
 
 	vcc=constrain(vcc, BAT_VREF_MIN_VOLTATE, BAT_VREF_MAX_VOLTATE);
 	batteryPcntVcc = map(vcc, BAT_VREF_MIN_VOLTATE, BAT_VREF_MAX_VOLTATE, 0, 100); 
 
-	DEBUG_PRINT("vcc: ");
-	DEBUG_PRINTLN(vcc);
+	// DEBUG_PRINT("vcc: ");
+	// DEBUG_PRINTLN(vcc);
 	
 	batVoltage  = (float)vcc / 1000;
 
-	DEBUG_PRINT("batVoltage: ");
-	DEBUG_PRINTLN(batVoltage);
+	// DEBUG_PRINT("batVoltage: ");
+	// DEBUG_PRINTLN(batVoltage);
 	
 	sendBatteryLevel(batteryPcntVcc);
 	send(MsgBatvRefValue.set(batVoltage,3));
@@ -266,12 +269,12 @@ void showEEpromChar()
 			}
 			else//not printable chars	
 			{
-				Serial.print('X');
+				Serial.print('_');
 			}
 			
 			if (j < 15)
 			{
-				Serial.print("-");
+				Serial.print(' ');
 			}
 			counter++;
 		}	
