@@ -27,6 +27,8 @@
 #define	MIN_ASCII_CHAR						32
 #define MAX_ASCII_CHAR						128
 
+#define DIGITAL_INPUT_SENSOR				3					// The digital input you attached your light sensor.  (Only 2 and 3 generates interrupt!)
+#define PULSE_LED							5
 
 #define CHILD_OW_TEMP						10
 #define	CHILD_OW_TEMP_TEXT					("OW_Temp")			//flashhelper is not working with functions in OneWireMaster.ino
@@ -44,8 +46,18 @@
 #define CHILD_MULTI_BUTTON 					30
 #define CHILD_MULTI_BUTTON_TEXT				(F("Mlt_Button"))
 
+#define CHILD_POWER_METER 					35
+#define CHILD_POWER_METER_TEXT				(F("PowerMeter"))
+
 #define CHILD_DEBUG_LEVEL					70
 #define	CHILD_DEBUG_LEVEL_TEXT				(F("Dbg_Level"))
+#define CHILD_NEW_METER_VALUE				71
+#define	CHILD_NEW_METER_VALUE_TEXT			(F("SetMeterValue"))
+
+#define CHILD_PASSIVE_NODE					80
+#define	CHILD_PASSIVE_NODE_TEXT				(F("PassiveNode"))
+#define CHILD_PARENT_NODE					81
+#define	CHILD_PARENT_NODE_TEXT				(F("ParentNode"))
 
 #define CHILD_HWTIME						90
 #define	CHILD_HWTIME_TEXT					(F("HwTime"))
@@ -61,34 +73,44 @@
 #define	CHILD_ECHO_RUNTIME_TEXT				(F("Echo_RT"))
 #define CHILD_DEBUG_RETURN					96
 #define	CHILD_DEBUG_RETURN_TEXT				(F("Dbg_Return"))
+#define CHILD_PACKET_RATIO					97
+#define	CHILD_PACKET_RATIO_TEXT				(F("Pkt_Ratio"))
+
 #define CHILD_BAT_ANLG 						98
 #define CHILD_BAT_VREF 						99
 #define CHILD_BAT_VREF_TEXT 				(F("Bat"))
 
 #include <VoltageReference.h>				// https://github.com/rlogiacco/VoltageReference Version 1.2.2
 
-MyMessage MsgOwTemp							(CHILD_OW_TEMP,  				V_TEMP);			//10-17
-MyMessage MsgDebugOWConList					(CHILD_OW_CONNECTED,			V_TEXT);			//18
-MyMessage MsgDebugOWDevCount				(CHILD_OW_DEV_COUNT,			V_TEXT);			//19
-MyMessage MsgOwName							(CHILD_OW_TEMP_NAME,  			V_TEXT);			//20-27
+MyMessage msgOwTemp							(CHILD_OW_TEMP,  				V_TEMP);			//10-17
+MyMessage msgDebugOWConList					(CHILD_OW_CONNECTED,			V_TEXT);			//18
+MyMessage msgDebugOWDevCount				(CHILD_OW_DEV_COUNT,			V_TEXT);			//19
+MyMessage msgOwName							(CHILD_OW_TEMP_NAME,  			V_TEXT);			//20-27
 
 
-MyMessage MsgMultiButton					(CHILD_MULTI_BUTTON,			V_TEXT);			//30
+MyMessage msgMultiButton					(CHILD_MULTI_BUTTON,			V_TEXT);			//30
 
-MyMessage MsgServoState						(CHILD_SERVO_STATE,				V_TEXT);			//40
+MyMessage msgPowerMeter						(CHILD_POWER_METER,				V_WATT);			//35
 
-MyMessage MsgDebugLevel						(CHILD_DEBUG_LEVEL,				V_TEXT);			//70
+MyMessage msgServoState						(CHILD_SERVO_STATE,				V_TEXT);			//40
+
+MyMessage msgDebugLevel						(CHILD_DEBUG_LEVEL,				V_TEXT);			//70
+MyMessage msgNewMeterValue					(CHILD_NEW_METER_VALUE,			V_TEXT);			//71
+
+MyMessage msgPassiveNode					(CHILD_PASSIVE_NODE, 			V_TEXT);			//80
+MyMessage msgParentNode						(CHILD_PARENT_NODE, 			V_TEXT);			//81
+
+MyMessage msgHwTime							(CHILD_HWTIME, 					V_TEXT);
+MyMessage msgSendingRSSI					(CHILD_TX_RSSI, 				V_TEXT);
+MyMessage msgPaLevel						(CHILD_RF24_PA_LEVEL, 			V_TEXT);
+MyMessage msgRFChannel						(CHILD_RF24_CHANNEL, 			V_TEXT);
+MyMessage msgEchoTimeStamp					(CHILD_ECHO_TIMESTAMP, 			V_TEXT);
+MyMessage msgEchoRunTime					(CHILD_ECHO_RUNTIME, 			V_TEXT);
+MyMessage msgDebugReturnString				(CHILD_DEBUG_RETURN, 			V_TEXT);
+MyMessage msgPacketRatio					(CHILD_PACKET_RATIO, 			V_TEXT);			//97
 
 
-MyMessage MsgHwTime							(CHILD_HWTIME, 					V_TEXT);
-MyMessage MsgSendingRSSI					(CHILD_TX_RSSI, 				V_TEXT);
-MyMessage MsgPaLevel						(CHILD_RF24_PA_LEVEL, 			V_TEXT);
-MyMessage MsgRFChannel						(CHILD_RF24_CHANNEL, 			V_TEXT);
-MyMessage MsgEchoTimeStamp					(CHILD_ECHO_TIMESTAMP, 			V_TEXT);
-MyMessage MsgEchoRunTime					(CHILD_ECHO_RUNTIME, 			V_TEXT);
-MyMessage MsgDebugReturnString				(CHILD_DEBUG_RETURN, 			V_TEXT);
-
-MyMessage MsgBatvRefValue					(CHILD_BAT_VREF,				V_VOLTAGE);			//99
+MyMessage msgBatvRefValue					(CHILD_BAT_VREF,				V_VOLTAGE);			//99
 
 VoltageReference vRef;
 
@@ -99,43 +121,75 @@ int16_t 	nowRSSI = 0;
 
 void myPresentation()
 {
+	DEBUG_PRINTLN(F("myPresentation"));
 	
-	// present(CHILD_OW_CONNECTED, 	S_INFO, 			CHILD_OW_CONNECTED_TEXT);//OneWireMaster only
-	present(CHILD_HWTIME, 			S_INFO, 			CHILD_HWTIME_TEXT);
-	present(CHILD_TX_RSSI, 			S_INFO, 			CHILD_TX_RSSI_TEXT);
-	present(CHILD_RF24_PA_LEVEL, 	S_INFO, 			CHILD_RF24_PA_LEVEL_TEXT);
-	present(CHILD_RF24_CHANNEL, 	S_INFO,				CHILD_RF24_CHANNEL_TEXT);
-	#ifdef MY_ECHO_NODE
-	present(CHILD_ECHO_TIMESTAMP, 	S_INFO,				CHILD_ECHO_TIMESTAMP_TEXT);
-	present(CHILD_ECHO_RUNTIME, 	S_INFO,				CHILD_ECHO_RUNTIME_TEXT);
+	// present(CHILD_OW_CONNECTED, 		S_INFO, 			CHILD_OW_CONNECTED_TEXT);//OneWireMaster only
+	// present(CHILD_OW_DEV_COUNT, 		S_INFO, 			CHILD_OW_DEV_COUNT_TEXT);//OneWireMaster only
+	present(CHILD_PASSIVE_NODE, 		S_INFO,				CHILD_PASSIVE_NODE_TEXT);
+	present(CHILD_PARENT_NODE, 			S_INFO,				CHILD_PARENT_NODE_TEXT);
+	#if !defined WITH_BATTERY
+		present(CHILD_HWTIME, 				S_INFO, 			CHILD_HWTIME_TEXT);
 	#endif
-	present(CHILD_DEBUG_LEVEL,	 	S_INFO,				CHILD_DEBUG_LEVEL_TEXT);
-	present(CHILD_DEBUG_RETURN, 	S_INFO,				CHILD_DEBUG_RETURN_TEXT);
-	present(CHILD_BAT_VREF,		 	S_MULTIMETER,		CHILD_BAT_VREF_TEXT);
+	present(CHILD_TX_RSSI, 				S_INFO, 			CHILD_TX_RSSI_TEXT);
+	present(CHILD_RF24_PA_LEVEL, 		S_INFO, 			CHILD_RF24_PA_LEVEL_TEXT);
+	present(CHILD_RF24_CHANNEL, 		S_INFO,				CHILD_RF24_CHANNEL_TEXT);
+	#ifdef MY_ECHO_NODE
+		present(CHILD_ECHO_TIMESTAMP, 		S_INFO,				CHILD_ECHO_TIMESTAMP_TEXT);
+		present(CHILD_ECHO_RUNTIME, 		S_INFO,				CHILD_ECHO_RUNTIME_TEXT);
+		present(CHILD_PACKET_RATIO, 		S_INFO,				CHILD_PACKET_RATIO_TEXT);
+	#endif
+	present(CHILD_DEBUG_LEVEL,	 		S_INFO,				CHILD_DEBUG_LEVEL_TEXT);
+	#if MY_NODE_ID > 99 && MY_NODE_ID < 110
+		present(CHILD_NEW_METER_VALUE,		S_INFO,				CHILD_NEW_METER_VALUE_TEXT);
+	#endif
+	present(CHILD_DEBUG_RETURN, 		S_INFO,				CHILD_DEBUG_RETURN_TEXT);
+
+	#ifdef WITH_BATTERY
+		present(CHILD_BAT_VREF,		 		S_MULTIMETER,		CHILD_BAT_VREF_TEXT);
+	#endif
 	
 }
 
 void myHeartBeatLoop()
 {
-	//CHILD_HWTIME
-	char buffer[14];
-	uint32_t currentSecs = ( millis() / 1000);
-	uint8_t day = (currentSecs / 86400) % 365; 
-	uint8_t hour = (currentSecs / 3600) % 24; 
-	uint8_t min = (currentSecs / 60) % 24; 
-	uint8_t sec = currentSecs % 60; 
-	sprintf(buffer, "%d %02d:%02d:%02d",day,hour,min,sec);
-	send(MsgHwTime.set(buffer));
-	// DEBUG_PRINT("HWTIME: ");
-	// DEBUG_PRINTLN(buffer);
+	DEBUG_PRINTLN(F("myHeartBeatLoop"));
+	#if !defined WITH_BATTERY //millis is not counted during sleep
+		//CHILD_HWTIME
+		char buffer[16];
+		uint32_t currentSecs = ( millis() / 1000);
+		uint8_t day = (currentSecs / 86400) % 365; 
+		uint8_t hour = (currentSecs / 3600) % 24; 
+		uint8_t min = (currentSecs / 60) % 24; 
+		uint8_t sec = currentSecs % 60; 
+		sprintf(buffer, "%d %02d:%02d:%02d",day,hour,min,sec);
+		send(msgHwTime.set(buffer));
+		// DEBUG_PRINT("HWTIME: ");
+		// DEBUG_PRINTLN(buffer);
+	#endif
+
 	//CHILD_TX_RSSI
 	nowRSSI=RF24_getSendingRSSI();
 	avgRSSI=((avgRSSI*7)+(nowRSSI))/8;
 	// DEBUG_PRINT("avgRSSI: ");
 	// DEBUG_PRINTLN(avgRSSI);
-	send(MsgSendingRSSI.set(avgRSSI));
-	send(MsgPaLevel.set(PA_LEVEL_TEXT));
-	send(MsgRFChannel.set(MY_RF24_CHANNEL));
+	send(msgSendingRSSI.set(avgRSSI));
+	send(msgPaLevel.set(PA_LEVEL_TEXT));
+	send(msgRFChannel.set(MY_RF24_CHANNEL));
+	#ifdef MY_PASSIVE_NODE
+		send(msgPassiveNode.set(1));
+	#else
+		send(msgPassiveNode.set(0));
+	#endif
+	#if MY_PARENT_NODE_ID == (AUTO)
+		// #ifdef MY_PARENT_NODE_IS_STATIC
+			// send(msgParentNode.set("S" + MY_PARENT_NODE_ID));
+		// #else
+		send(msgParentNode.set("AUTO"));
+		// #endif
+	#else
+		send(msgParentNode.set("NoAuto"));
+	#endif	
+
 
 }
 
@@ -219,14 +273,14 @@ void mySendSketchInfo()
 	sendSketchInfo(SKETCH_NAME, SendString );
 }
 
-void PrintRF24Transport()
-{
-	DEBUG_PRINT(F("RF24_getTxPowerLevel: "));
-	DEBUG_PRINTLN(RF24_getTxPowerLevel());
+// void PrintRF24Transport()
+// {
+	// DEBUG_PRINT(F("RF24_getTxPowerLevel: "));
+	// DEBUG_PRINTLN(RF24_getTxPowerLevel());
 	
-	DEBUG_PRINT(F("RF24_getSendingRSSI:  "));
-	DEBUG_PRINTLN(RF24_getSendingRSSI());
-}
+	// DEBUG_PRINT(F("RF24_getSendingRSSI:  "));
+	// DEBUG_PRINTLN(RF24_getSendingRSSI());
+// }
 
 void BatteryVRef()
 {
@@ -250,7 +304,7 @@ void BatteryVRef()
 	// DEBUG_PRINTLN(batVoltage);
 	
 	sendBatteryLevel(batteryPcntVcc);
-	send(MsgBatvRefValue.set(batVoltage,3));
+	send(msgBatvRefValue.set(batVoltage,3));
 }
 
 void showEEpromChar()

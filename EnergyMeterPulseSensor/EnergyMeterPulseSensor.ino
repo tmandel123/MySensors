@@ -4,71 +4,80 @@
 20181112 Version 1.33		Sleep_mode ausgebaut und DEBUG_PRINT eingeführt
 20181114 Version 1.34		boolean informGW = false; - > bool informGW = false;
 20181114 Version 1.4-003	MY_REPEATER_FEATURE deaktiviert und sendSketchInfo(SKETCH_NAME, SKETCH_VER " " __TIME__ " " __DATE__);
+							Es gibt immer wieder Aussetzer von mehreren Stunden. Danach läuft alles wieder normal. Zählerwerte gehen jedoch nicht verloren. Laufzeit akutell 36 Tage.
 
 
 *************************************************/
 
-// Enable debug prints
+//	###################   Debugging   #####################
 // #define MY_DEBUG
+// #define SER_DEBUG
+// #define MY_DEBUG_VERBOSE_RF24								//Testen, welche zusätzlichen Infos angezeigt werden
+// #define MY_SPLASH_SCREEN_DISABLED
+// #define MY_SIGNAL_REPORT_ENABLED
 
-#define SER_DEBUG
+//	###################   Features   #####################
+#define MY_REPEATER_FEATURE
+// #define MY_GATEWAY_SERIAL
+// #define MY_INCLUSION_MODE_FEATURE
+// #define MY_INCLUSION_BUTTON_FEATURE
+// #define MY_INCLUSION_MODE_BUTTON_PIN 3
 
+//	###################   LEDs   #####################
+// #define MY_WITH_LEDS_BLINKING_INVERSE
+// #define MY_DEFAULT_TX_LED_PIN 				(8)
+// #define MY_DEFAULT_LED_BLINK_PERIOD 		10
 
-
-// Enable and select radio type attached
+// ###################   Transport   #####################
+/*
+RF24_PA_MIN = 	-18dBm 		0	R_TX_Powerlevel_Pct 	25
+RF24_PA_LOW = 	-12dBm 		1	R_TX_Powerlevel_Pct
+RF24_PA_HIGH = 	-6dBm 		2	R_TX_Powerlevel_Pct
+RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
+*/
+#define MY_RF24_PA_LEVEL 					RF24_PA_LOW  //EchoNote hatte Max -> Reichweite bis Gartenhaus (-29) und noch Empfangen (-149) bis hinter Steins Haus
+// #define MY_RF24_PA_LEVEL 					RF24_PA_MAX
 #define MY_RADIO_RF24
-#define MY_RF24_CHANNEL 96
-#define MY_NODE_ID 100
-#define MY_PARENT_NODE_ID 50
-// #define MY_REPEATER_FEATURE									//	2019-01-23	MY_REPEATER_FEATURE deaktiviert weil dieser Sensor als einziger instabil läuft. 
-																//	Es gibt immer wieder Aussetzer von mehreren Stunden. Danach läuft alles wieder normal. Zählerwerte gehen jedoch nicht verloren. Laufzeit akutell 36 Tage.
+#define MY_RF24_CHANNEL 					96
+// #define MY_TRANSPORT_WAIT_READY_MS 			(5000ul)
+#define MY_RF24_SANITY_CHECK
 
-#define MY_TRANSPORT_WAIT_READY_MS (5000ul)
+#define MY_NODE_ID 							100
+// #define MY_PARENT_NODE_ID 					50
+// #define MY_PARENT_NODE_IS_STATIC
+// #define MY_PASSIVE_NODE
+
+
+
+
+
+// ###################   Node Spezifisch   #####################
+#define SKETCH_VER            				"1.5-004"        		// Sketch version
+#define SKETCH_NAME           				"EnergyMeter"   		// Optional child sensor name
+
 
 #include <MySensors.h>
-
-#define SKETCH_NAME						"EnergyMeter"			// Optional child sensor name
-#define SKETCH_VER						"1.5-002"				// Sketch version
+#include "C:\_Lokale_Daten_ungesichert\Arduino\MySensors\CommonFunctions.h" //muss nach allen anderen #defines stehen
 
 
+#define PULSE_FACTOR						1000				// Nummber of blinks per KWH of your meeter
+#define MAX_WATT							12000				// Max watt value to report. This filetrs outliers.
 
-#define DIGITAL_INPUT_SENSOR			3					// The digital input you attached your light sensor.  (Only 2 and 3 generates interrupt!)
-#define PULSE_FACTOR					1000				// Nummber of blinks per KWH of your meeter
-#define MAX_WATT						12000				// Max watt value to report. This filetrs outliers.
-#define CHILD_ID						1					// Id of the sensor child
-#define CHILD_NAME_1					"PowerMeter Child"
-#define CHILD_ID_ANALOG					2					//ID für Threshold Werte und setzten der EEPROM MeterValue
-#define CHILD_ID_DEBUG					3					// Debug setzen und lesen
+#define EEPROM_DEVICE_DEBUG_LEVEL			0					//8  Bit
+#define EEPROM_METER_VALUE					1					//32 Bit
 
-
-#define EEPROM_DEBUGLEVEL				0					//8  Bit
-#define EEPROM_METER_VALUE				1					//32 Bit
-
-// Input and output definitions
-// #define ANALOG_INPUT_SENSOR				A0					// The analog input you attached your sensor. 
-#define UPLINK_LED						5
-#define PULSE_LED						6
-#define SEND_WAIT						50
-#define REQUEST_ACK						true
+#define SEND_WAIT							50
+// #define REQUEST_ACK							true
 
 // Sonstige Werte
-#define HEARTBEAT_INTERVAL				300000				//später alle 5 Minuten, zum Test alle 30 Sekunden
-#define INTERNALS_UPDATE_INTERVAL		3600000				//jede Stunde Update senden (Debug, Threshold usw)
-#define FLOW_TO_ZERO_TIME				120000				//120000
+#define HEARTBEAT_INTERVAL					300000				//später alle 5 Minuten, zum Test alle 30 Sekunden
+#define INTERNALS_UPDATE_INTERVAL			3600000				//jede Stunde Update senden (Debug, Threshold usw)
 
-#ifdef SER_DEBUG
-#define DEBUG_SERIAL(x) Serial.begin(x)
-#define DEBUG_PRINT(x) Serial.print(x)
-#define DEBUG_PRINTLN(x) Serial.println(x)
-#else
-#define DEBUG_SERIAL(x)
-#define DEBUG_PRINT(x) 
-#define DEBUG_PRINTLN(x) 
-#endif
+#define MAX_DEBUG_LEVEL         			9
 
-// bool pcReceived = false;
+
+
 bool informGW = false;
-bool TransportUplink = true;
 bool firstLoop = true;
 
 uint8_t debugLevel = 0;										// sets the debug level, 0 = basic info. 1 = streaming level info. 2 = sent level streaming to gateway.
@@ -79,59 +88,56 @@ uint32_t oldWatt = 0;
 uint32_t lastSend;
 uint32_t lastHeartBeat = 0;
 uint32_t lastInternalsUpdate = 0; 
-// uint32_t lastPulseTime = 0;
-
 
 volatile uint32_t pulseCount = 0;
 volatile uint32_t lastPulseTime = 0;
 volatile uint32_t watt = 0;
 
-// double ppwh = ((double)PULSE_FACTOR)/1000; // Pulses per watt hour
-double oldKwh;
 
+// MyMessage wattMsg(CHILD_ID,V_WATT);
+// MyMessage kwhMsg(CHILD_ID,V_KWH);
+// MyMessage lastCounterMsg(CHILD_ID,V_VAR1);
 
-
-MyMessage wattMsg(CHILD_ID,V_WATT);
-MyMessage kwhMsg(CHILD_ID,V_KWH);
-MyMessage lastCounterMsg(CHILD_ID,V_VAR1);
-
-// MyMessage analogValue	(CHILD_ID_ANALOG, V_VAR1);
-// MyMessage MsgMinValue	(CHILD_ID_ANALOG, V_VAR2);
-// MyMessage MsgMaxValue	(CHILD_ID_ANALOG, V_VAR3);
-MyMessage MeterValue	(CHILD_ID_ANALOG, V_VAR5);
-
-MyMessage debugValue	(CHILD_ID_DEBUG, V_VAR1);
-// MyMessage thValueMin	(CHILD_ID_DEBUG, V_VAR2);
-// MyMessage thValueMax	(CHILD_ID_DEBUG, V_VAR3);
-MyMessage hwTime		(CHILD_ID_DEBUG, V_VAR4);
-MyMessage Uplink		(CHILD_ID_DEBUG, V_VAR5);
 
 void preHwInit() 
 {
-	DEBUG_SERIAL(115200);
+	DEBUG_SERIAL(MY_BAUD_RATE);
+	delay(50); // bei weniger als 18ms kommt soetwas hier: p⸮Y⸮%⸮⸮⸮⸮ 
+	DEBUG_PRINTLN("preHwInit");
 }
 
 void before() 
 {
-	DEBUG_PRINTLN("before: ");
-	DEBUG_PRINT(SKETCH_NAME);
-	DEBUG_PRINT(" ");
-	DEBUG_PRINTLN(SKETCH_VER);
-}
-
-void setup()
-{
-	DEBUG_PRINTLN("setup: ");
-	hwPinMode(UPLINK_LED, OUTPUT);
-	hwPinMode(PULSE_LED, OUTPUT);
-	// writeEeprom32(EEPROM_METER_VALUE, 6787639);
-
+	DEBUG_PRINTLN("before");
+	
+	debugLevel = loadState(EEPROM_DEVICE_DEBUG_LEVEL); 	//8 Bit
+	if (debugLevel>MAX_DEBUG_LEVEL)
+	{
+		debugLevel=0;
+		DEBUG_PRINTLN(F("Save: debugLevel to 0"));
+		saveState(EEPROM_DEVICE_DEBUG_LEVEL, debugLevel);//8 Bit
+	}
+	DEBUG_PRINT(F("debugLevel level fetched from EEPROM "));
+	DEBUG_PRINTLN(debugLevel);
+	
 	uint32_t MeterValue = readEeprom32(EEPROM_METER_VALUE);
+	if (MeterValue == 0xFFFFFFFF)
+	{
+		DEBUG_PRINT("EEPROM_METER_VALUE to 0");
+		MeterValue=0;
+	}
 	DEBUG_PRINT("readEeprom32: EEPROM_METER_VALUE ");
 	DEBUG_PRINTLN(MeterValue);
 	pulseCount = MeterValue;
 	oldPulseCount = MeterValue;
 
+}
+
+void setup()
+{
+	DEBUG_PRINTLN("setup: ");
+
+	pinMode(PULSE_LED, OUTPUT);
 	
 	pinMode(DIGITAL_INPUT_SENSOR,INPUT_PULLUP);
 
@@ -141,28 +147,15 @@ void setup()
 	lastPulseTime = lastSend;
 	lastInternalsUpdate = lastSend;
 	
-	// Fetch debug level from EEPROM
-	debugLevel = loadState(EEPROM_DEBUGLEVEL); //8 Bit
-	// debugMessage("Debug level fetched from EEPROM, value: ", String(debugLevel));
-	
-	if (debugLevel == 255)//vermutlich wurde das EEPROM an dieser Stelle noch nicht beschrieben
-	{
-		debugLevel=0;
-		saveState(EEPROM_DEBUGLEVEL,debugLevel);
-		// debugMessage("Debug level defaults stored to  EEPROM, value: ", String(debugLevel));
-	}
-	
 }
 
 void presentation()
 {
-
-	// sendSketchInfo(SKETCH_NAME, SKETCH_VER); 
-	sendSketchInfo(SKETCH_NAME, SKETCH_VER " " __TIME__ " " __DATE__);
-	// Register this device as power sensor
-	present(CHILD_ID, S_POWER, CHILD_NAME_1);
-	present(CHILD_ID_ANALOG, S_CUSTOM, "Set/Get MeterValue EEPROM Child");
-	present(CHILD_ID_DEBUG, S_CUSTOM, "Debug Set/Get Child");
+	mySendSketchInfo();
+	myPresentation();
+	present(CHILD_POWER_METER, S_POWER, CHILD_POWER_METER_TEXT);
+	wait(100);
+	myHeartBeatLoop();
 }
 
 void loop()
@@ -171,30 +164,18 @@ void loop()
 	uint32_t TimeSinceHeartBeat = currentTime - lastHeartBeat;
 	// uint32_t TimeSinceLastPulse = currentTime - lastPulseTime;
 	
-	if (TransportUplink)
-	{
-		digitalWrite(UPLINK_LED,HIGH);
-	}
-	else
-	{
-		digitalWrite(UPLINK_LED,LOW);
-	}
 	
 	if (((TimeSinceHeartBeat > (uint32_t)HEARTBEAT_INTERVAL)) || firstLoop || informGW)
 	{
-		TransportUplink = send(hwTime.set(currentTime), REQUEST_ACK);
-		DEBUG_PRINT("Uplink Check: ");
-		DEBUG_PRINTLN(TransportUplink);	
-		wait(SEND_WAIT);
-		send(Uplink.set(TransportUplink));		
-	
 		lastHeartBeat = currentTime;
 
 		if (informGW)
 		{
 			informGW = false;
-			send(lastCounterMsg.set(pulseCount));
+			send(msgPowerMeter.setType(V_VAR1).set(pulseCount));
 		}
+		sendHeartbeat();
+		myHeartBeatLoop();
 	}
 
 	//Serviceroutine, welche alle 60 Minuten läuft um Werte für FHEM Grafik aktuell zu halten
@@ -209,25 +190,24 @@ void loop()
 		{
 			// DEBUG_PRINTLN("IT: Write EEPROM_METER_VALUE");
 			writeEeprom32(EEPROM_METER_VALUE, pulseCount);	
+			myHeartBeatLoop();
 		}
-		send(debugValue.set(debugLevel),REQUEST_ACK);
-		wait(SEND_WAIT);
-		send(MeterValue.set(pulseCount),REQUEST_ACK);
-		wait(SEND_WAIT);
-		
+		send(msgDebugLevel.set(debugLevel));
+		send(msgNewMeterValue.set(pulseCount));
+
 		lastInternalsUpdate = currentTime;
+		
 	}	
 	
 	// Only send values at a maximum frequency or woken up from sleep
-	if (currentTime - lastSend > SEND_FREQUENCY) 
+	if (currentTime - lastSend > SEND_FREQUENCY) //todo: pulseled bool for faster off of led
 	{
-		// New watt value has been calculated
 		if (watt != oldWatt) 
 		{
 			// Check that we dont get unresonable large watt value.
 			// could hapen when long wraps or false interrupt triggered
 			if (watt<((uint32_t)MAX_WATT)) {
-				send(wattMsg.set(watt));  // Send watt value to gw
+				send(msgPowerMeter.setType(V_WATT).set(watt));  // Send watt value to gw
 			}
 			DEBUG_PRINT("Watt:");
 			DEBUG_PRINTLN(watt);
@@ -238,17 +218,15 @@ void loop()
 		if (pulseCount != oldPulseCount) 
 		{
 			digitalWrite(PULSE_LED,HIGH);
-			send(lastCounterMsg.set(pulseCount));  // Send pulse count value to gw
-			double kwh = ((double)pulseCount/((double)PULSE_FACTOR));
+			send(msgPowerMeter.setType(V_VAR1).set(pulseCount));  
+			float kwh = ((float)pulseCount/((float)PULSE_FACTOR));
 			oldPulseCount = pulseCount;
-			if (kwh != oldKwh) {
-				send(kwhMsg.set(kwh, 4));  // Send kwh value to gw
-				oldKwh = kwh;
-			}
+			send(msgPowerMeter.setType(V_KWH).set(kwh, 3));  // Send kwh value to gw
+
 		}
 		else
 		{
-			digitalWrite(PULSE_LED,LOW);
+			// digitalWrite(PULSE_LED,LOW);
 		}
 		lastSend = currentTime;
 	} 
@@ -256,16 +234,17 @@ void loop()
 
 void receive(const MyMessage &message)
 {
-	if ((message.sensor == CHILD_ID_ANALOG) && !mGetAck(message))
+	if ((message.sensor == CHILD_NEW_METER_VALUE) && !mGetAck(message))
 	{
 		switch (message.type) 
 		{
-			case V_VAR5: 
+			case V_TEXT: 
 			{
-				noInterrupts(); //für den nächsten Zuweisungen die Interrupts deaktiveren
+				noInterrupts(); //für die nächsten Zuweisungen die Interrupts deaktiveren
 				pulseCount = message.getULong();
 				oldPulseCount = pulseCount;
-				DEBUG_PRINTLN("new MeterValue from GW");
+				DEBUG_PRINT("new MeterValue from GW");
+				DEBUG_PRINTLN(pulseCount);
 				watt = oldWatt = 0;
 				informGW = true;
 				writeEeprom32(EEPROM_METER_VALUE, pulseCount);
@@ -273,16 +252,32 @@ void receive(const MyMessage &message)
 			}
 		}
 	}
-	
-	// if (message.sensor == CHILD_ID)
-	// {
-		// if (message.type==V_VAR1) {
-			// pulseCount = oldPulseCount = message.getLong();
-			// DEBUG_PRINT("Received last pulse count from gw:");
-			// DEBUG_PRINTLN(pulseCount);
-			// informGW = true;
-		// }
-	// }
+	if (message.sensor == CHILD_DEBUG_LEVEL)
+	{ 
+		switch (message.type) 
+		{
+			case V_TEXT: 
+			{
+				// debugLevel = message.getULong();
+				debugLevel = message.getByte();
+				if (debugLevel == 3)
+				{
+					#ifdef SER_DEBUG
+						send(msgDebugReturnString.set(F("showEEpromHex")));
+						showEEpromHex();
+					#else
+						send(msgDebugReturnString.set(F("dbg3 not possible")));
+					#endif
+				}		
+				if (debugLevel == 9)
+				{
+					send(msgDebugReturnString.set(F("hwReboot")));
+					hwReboot();
+				}
+			}
+			break;
+		}
+	}
 }
 
 void onPulse()
@@ -290,34 +285,18 @@ void onPulse()
 	uint32_t newPulseTime = micros();
 	uint32_t interval = newPulseTime-lastPulseTime;
 	// if (interval<10000L) { // Sometimes we get interrupt on RISING
-	if (interval<1000L) { // Sometimes we get interrupt on RISING
+	if (interval<(uint32_t)10000) { // Sometimes we get interrupt on RISING
 		return;
 	}
 	// watt = (3600000000.0 /interval) / ppwh;
 	watt = (3600000000.0 /interval);
 	lastPulseTime = newPulseTime;
 	pulseCount++;
+	DEBUG_PRINT("onPulse:");
+	DEBUG_PRINTLN(pulseCount);
 }
 
 
-
-
-// void writeEeprom16(uint8_t pos, uint16_t value) 
-// {
-  // saveState(pos, ((uint16_t)value >> 8));
-  // pos++;
-  // saveState(pos, (value & 0xff));
-// }
-
-// uint16_t readEeprom16(uint8_t pos) 
-// {
-  // uint16_t hiByte;
-  // uint16_t loByte;
-  // hiByte = loadState(pos) << 8;
-  // pos++;
-  // loByte = loadState(pos);
-  // return (hiByte | loByte);
-// }
 
 
 //This function will write a 4 byte (32bit) uint32_t to the eeprom at
@@ -350,28 +329,15 @@ uint32_t readEeprom32(int pos)
 	return ((four << 0) & 0xFF) + ((three << 8) & 0xFFFF) + ((two << 16) & 0xFFFFFF) + ((one << 24) & 0xFFFFFFFF);
 }  
 
-void showEEprom()
+
+void ClearEeprom()
 {
-	DEBUG_PRINTLN("showEEprom()");
-	byte counter=0;
-	byte Zeichen;
-	for (byte i = 0; i<16; i++)
+	// debugMessage("ClearEeprom", "");
+	send(msgDebugReturnString.set(F("EEPROM cleared")));
+	for (uint8_t i = 0; i < (EEPROM_METER_VALUE+5);i++)
 	{
-		for (byte j = 0; j<16; j++)
-		{
-			Zeichen=loadState(counter);
-			if (Zeichen < 16)
-			{
-				Serial.print("0");
-				
-			}
-			Serial.print(String(Zeichen,HEX));
-			if (j < 15)
-			{
-				Serial.print("-");
-			}
-			counter++;
-		}	
-		DEBUG_PRINTLN("");
+		Serial.print("Clearing Pos: "); 
+		Serial.println(i);
+		saveState(i,0xFF);
 	}
 }

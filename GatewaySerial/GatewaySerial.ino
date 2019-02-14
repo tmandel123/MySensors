@@ -13,10 +13,10 @@
 // #define MY_INCLUSION_MODE_BUTTON_PIN 3
 
 //	###################   LEDs   #####################
-#define MY_WITH_LEDS_BLINKING_INVERSE
-#define MY_DEFAULT_TX_LED_PIN 				(8)
-#define MY_DEFAULT_LED_BLINK_PERIOD 		10
-
+// #define MY_WITH_LEDS_BLINKING_INVERSE
+// #define MY_DEFAULT_TX_LED_PIN 				8
+// #define MY_DEFAULT_RX_LED_PIN				7
+// #define MY_DEFAULT_LED_BLINK_PERIOD 		10
 // ###################   Transport   #####################
 /*
 RF24_PA_MIN = 	-18dBm 		0	R_TX_Powerlevel_Pct 	25
@@ -24,10 +24,10 @@ RF24_PA_LOW = 	-12dBm 		1	R_TX_Powerlevel_Pct
 RF24_PA_HIGH = 	-6dBm 		2	R_TX_Powerlevel_Pct
 RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 */
-// #define MY_RF24_PA_LEVEL 					RF24_PA_MIN  //EchoNote hatte Max -> Reichweite bis Gartenhaus (-29) und noch Empfangen (-149) bis hinter Steins Haus
-#define MY_RF24_PA_LEVEL 					RF24_PA_MAX
+#define MY_RF24_PA_LEVEL 					RF24_PA_MIN  //EchoNote hatte Max -> Reichweite bis Gartenhaus (-29) und noch Empfangen (-149) bis hinter Steins Haus
+// #define MY_RF24_PA_LEVEL 					RF24_PA_MAX
 #define MY_RADIO_RF24
-// #define MY_RF24_CHANNEL 					96
+#define MY_RF24_CHANNEL 					96
 // #define MY_TRANSPORT_WAIT_READY_MS 			(5000ul)
 
 // #define MY_NODE_ID 							52
@@ -87,7 +87,7 @@ void receive(const MyMessage &message)
 	// DEBUG_PRINTLN(message.sender);
 
 	
-	if (!mGetAck(message) && message.sensor == CHILD_ECHO_TIMESTAMP && message.sender == 225)
+	if (!mGetAck(message) && message.sensor == CHILD_ECHO_TIMESTAMP)
 	{
 		if (message.type == V_TEXT)
 		{
@@ -104,10 +104,6 @@ void receive(const MyMessage &message)
 			// gatewayTransportSend(msg.setDestination(225).set("test2"));
 			// DEBUG_PRINTLN("transportSendRoute test2");
 			// transportSendRoute(msg.set("test2"));
-
 		}
 	}
-	
-
-		
 }

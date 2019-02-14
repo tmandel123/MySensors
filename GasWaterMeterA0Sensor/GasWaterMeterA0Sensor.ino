@@ -1,10 +1,11 @@
 /**
-Sensoren:	Gas		Arduino Raspberry kompatible Linear Hall Magnetic Sensor Module KY-024 	(1,35 EUR)
+Sensors:	Gas		Arduino Raspberry kompatible Linear Hall Magnetic Sensor Module KY-024 	(1,35 EUR)
+					https://arduinomodules.info/ky-024-linear-magnetic-hall-module/						operating voltage 2.7V to 6.5V
 					Angeschlossen an 3,3V 
 					kein Magnet in der Nähe: 			AnalogValue=512
 					starker Magnet ganz dicht dran:		AnalogValue=267
 					
-			Water	Obstacle Avoidance TCRT5000 Infrared Track Sensor Module For Arduino	(1,00 EUR)
+			Water	Obstacle Avoidance TCRT5000 Infrared Track Sensor Module For Arduino	(1,00 EUR) 	operating voltage 3,3V to 5V
 
 */
  
@@ -38,20 +39,22 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 
 */
 
-#define SKETCH_VER						"2.4.1-017"				// Sketch version
+#define SKETCH_VER						"2.4.1-018"				// Sketch version
 #define MY_RADIO_RF24
 
-// #define MY_DEBUG //muss vor MySensors.h stehen
+#define MY_DEBUG //muss vor MySensors.h stehen
 #define SER_DEBUG
 
 
 // #define MY_REPEATER_FEATURE
 #define MY_RF24_CHANNEL 96									// Für Testphase deaktivieren, damit Kanal 76 aktiv wird (Prod=96 Test=76)
 #define MY_TRANSPORT_WAIT_READY_MS (5000ul)
-#define MY_PARENT_NODE_ID 50
+#define MY_RF24_SANITY_CHECK
+// #define MY_PARENT_NODE_ID 50
 // #define MY_PARENT_NODE_ID 0
-#define MY_PARENT_NODE_IS_STATIC
-#define MY_SPLASH_SCREEN_DISABLED
+// #define MY_PARENT_NODE_IS_STATIC
+// #define MY_SPLASH_SCREEN_DISABLED
+#define MY_RF24_SANITY_CHECK
 
 #define WATER
 // #define GAS
@@ -523,11 +526,13 @@ void newPulse()
 	{
 		// debugMessage("new Pulse Interval since last ", String(interval));
 	}
-
-	if (interval != 0) 
-	{
-		flow = (60000.0 / interval) / ppl;
+	
+	if (interval<(uint32_t)10000) { // Sometimes we get interrupt on RISING
+		return;
 	}
+
+	flow = (60000.0 / interval) / ppl;
+	
 	lastPulseTime = newPulseTime;
 
 	pulseCount++;

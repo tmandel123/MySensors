@@ -72,24 +72,24 @@ RF24_PA_MAX = 0dBm
 #define DEBOUNCE_TICKS						15
 #define CLICK_TICKS							250
 
-#define	BAT_VREF_MAX_VOLTATE				3150
-#define	BAT_VREF_MIN_VOLTATE				1800
+// #define	BAT_VREF_MAX_VOLTATE				3150
+// #define	BAT_VREF_MIN_VOLTATE				1800
 // #define BAT_MESSURED						3510
 // #define BAT_VREF_CORRECTION_VALUE		(float)BAT_VREF_MAX_VOLTATE/(float)BAT_MESSURED
 // #define BAT_VREF_CORRECTION_VALUE		1
 
 
 #include <MySensors.h>
-#include <VoltageReference.h>			// https://github.com/rlogiacco/VoltageReference Version 1.2.2
+// #include <VoltageReference.h>			// https://github.com/rlogiacco/VoltageReference Version 1.2.2
 #include <OneButton.h>					// http://www.mathertel.de/Arduino/OneButtonLibrary.aspx Version 1.3
 #include "C:\_Lokale_Daten_ungesichert\Arduino\MySensors\CommonFunctions.h" //muss nach allen anderen #defines stehen
 
-VoltageReference vRef;
+// VoltageReference vRef;
 
 OneButton button1(PRIMARY_BUTTON_PIN,1,true); //Pin, 1=button connected to Ground, true = INPUT_PULLUP
 OneButton button2(SECONDARY_BUTTON_PIN,1,true);
 
-MyMessage BatvRefValue			(CHILD_ID_BAT_VREF,		V_VOLTAGE);
+// MyMessage BatvRefValue			(CHILD_ID_BAT_VREF,		V_VOLTAGE);
 MyMessage ButtonMsg				(BUTTON_CHILD, 			V_VAR1);
 // MyMessage ButtonVarMsg			(BUTTON_CHILD, 			V_VAR2);
 
@@ -236,28 +236,4 @@ void click1()
 // void longPress1()
 
 
-void BatteryVRef()
-{
-	uint8_t batteryPcntVcc;
-	float batVoltage;
-	uint16_t vcc = vRef.readVcc(); //5000 oder 3000 mA
-	// uint16_t vccCorrect = (vcc * float(BAT_VREF_CORRECTION_VALUE));
-	
-	DEBUG_PRINT("vcc vor constrain: ");
-	DEBUG_PRINTLN(vcc);
-
-	vcc=constrain(vcc, BAT_VREF_MIN_VOLTATE, BAT_VREF_MAX_VOLTATE);
-	batteryPcntVcc = map(vcc, BAT_VREF_MIN_VOLTATE, BAT_VREF_MAX_VOLTATE, 0, 100); 
-
-	DEBUG_PRINT("vcc: ");
-	DEBUG_PRINTLN(vcc);
-	
-	batVoltage  = (float)vcc / 1000;
-
-	DEBUG_PRINT("batVoltage: ");
-	DEBUG_PRINTLN(batVoltage);
-	
-	sendBatteryLevel(batteryPcntVcc);
-	send(BatvRefValue.set(batVoltage,3));
-}
 

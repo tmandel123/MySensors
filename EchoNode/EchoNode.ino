@@ -32,8 +32,9 @@ Grundsätzliche funktionsweise:
 
 //	###################   LEDs   #####################
 // #define MY_WITH_LEDS_BLINKING_INVERSE
-// #define MY_DEFAULT_TX_LED_PIN 				(8)
-// #define MY_DEFAULT_LED_BLINK_PERIOD 		10
+#define MY_DEFAULT_TX_LED_PIN 				8
+#define MY_DEFAULT_RX_LED_PIN				7
+#define MY_DEFAULT_LED_BLINK_PERIOD 		10
 
 // ###################   Transport   #####################
 /*
@@ -44,18 +45,18 @@ RF24_PA_MAX = 0dBm
 */
 #define MY_RF24_PA_LEVEL 					RF24_PA_LOW
 #define MY_RADIO_RF24
-// #define MY_RF24_CHANNEL 					96
+#define MY_RF24_CHANNEL 					96
 // #define MY_TRANSPORT_WAIT_READY_MS			(5000ul)
 // #define MY_RF24_SANITY_CHECK
 
 #define MY_NODE_ID 							225
 #define MY_PARENT_NODE_ID 					0
 #define MY_PARENT_NODE_IS_STATIC
-#define MY_PASSIVE_NODE
+// #define MY_PASSIVE_NODE
 
 
 // ###################   Node Spezifisch   #####################
-#define SKETCH_VER            				"1.0-004"        			// Sketch version
+#define SKETCH_VER            				"1.0-005"        			// Sketch version
 #define SKETCH_NAME           				"Echo Node"   		// Optional child sensor name
 #define MY_ECHO_NODE											//for some mir myPresentation() sendings
 
@@ -63,9 +64,9 @@ RF24_PA_MAX = 0dBm
 // #define SEND_WAIT							20						// 20ms reicht nicht aus, dann kommt immer NACK, bei 22ms läuft es (mit Repeater sollten es 50ms sein)							
 // #define REQUEST_ACK							true
 
-#define HEARTBEAT_INTERVAL        			600000        //später alle 5 Minuten, zum Test alle 30 Sekunden
+#define HEARTBEAT_INTERVAL        			300000        //später alle 5 Minuten, zum Test alle 30 Sekunden
 // #define ECHO_TXFAIL_RESET_TIME     			10000
-#define MAX_ECHO_WAIT	        			1000
+#define MAX_ECHO_WAIT	        			3000
 
 
 
@@ -73,7 +74,8 @@ RF24_PA_MAX = 0dBm
 #include "C:\_Lokale_Daten_ungesichert\Arduino\MySensors\CommonFunctions.h" //muss nach allen anderen #defines stehen
 
 bool 		GotEchoResponse = true;
-int8_t		TxFailCounter = 0;
+uint32_t	TxFailCounter = 0;
+uint32_t	TxGoodCounter = 0;
 uint16_t	maxPingTime = 1;
 uint16_t	minPingTime = 1000;
 uint32_t 	lastHeartBeat = 0;
@@ -102,6 +104,7 @@ void presentation()
 	DEBUG_PRINTLN("presentation...");;
 	mySendSketchInfo();
 	myPresentation();
+	myHeartBeatLoop();
 }
 
 void setup()
@@ -121,7 +124,7 @@ void loop()
 
 	
 	
-	if (TimeSinceEchoSend > (uint32_t)MAX_ECHO_WAIT)
+	if ((TimeSinceEchoSend > (uint32_t)MAX_ECHO_WAIT) || GotEchoResponse)
 	{
 
 
@@ -129,7 +132,8 @@ void loop()
 		{
 			if (EchoRuntime > 0)
 			{
-				send(MsgEchoRunTime.set(EchoRuntime));
+				TxGoodCounter++;
+				send(msgEchoRunTime.set(EchoRuntime));
 				if (EchoRuntime > maxPingTime)
 				{
 					maxPingTime=EchoRuntime;
@@ -143,26 +147,20 @@ void loop()
 		else
 		{
 			DEBUG_PRINTLN("NOT GotEchoResponse: ");
-			DEBUG_PRINT("EchoLastSend");
-			DEBUG_PRINTLN(EchoLastSend);
-			
-			DEBUG_PRINT("EchoTimeStamp");
-			DEBUG_PRINTLN(EchoTimeStamp);
-			
-			DEBUG_PRINT("EchoReturn");
-			DEBUG_PRINTLN(EchoReturn);
-			
-			DEBUG_PRINT("EchoRuntime");
-			DEBUG_PRINTLN(EchoRuntime);
-
 			TxFailCounter++;
 		}
+		
+		uint32_t PacketRatio=(TxGoodCounter/(TxGoodCounter+TxFailCounter)*100);
+		send(msgPacketRatio.set(PacketRatio));
+		
 		nowRSSI=RF24_getSendingRSSI();
 		avgRSSI=((avgRSSI*7)+(nowRSSI))/8;
-		send(MsgSendingRSSI.set(avgRSSI));
+		send(msgSendingRSSI.set(avgRSSI));
 	
 		DEBUG_PRINT("TX Fail: ");
 		DEBUG_PRINT(TxFailCounter);
+		DEBUG_PRINT(" Ratio ");
+		DEBUG_PRINT(PacketRatio);
 		DEBUG_PRINT(" avgRSSI ");
 		DEBUG_PRINT(avgRSSI);
 		DEBUG_PRINT(" Ping ");
@@ -174,7 +172,7 @@ void loop()
 		
 		EchoLastSend=millis();
 		EchoTimeStamp=EchoLastSend;
-		send(MsgEchoTimeStamp.set(EchoTimeStamp));
+		send(msgEchoTimeStamp.set(EchoTimeStamp));
 		GotEchoResponse=false;
 	}
 	

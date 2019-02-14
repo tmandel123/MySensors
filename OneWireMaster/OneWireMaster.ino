@@ -7,8 +7,8 @@
 
 
 //	###################   Debugging   #####################
-#define MY_DEBUG
-#define SER_DEBUG
+// #define MY_DEBUG
+// #define SER_DEBUG
 // #define MY_DEBUG_VERBOSE_RF24								//Testen, welche zusätzlichen Infos angezeigt werden
 // #define MY_SPLASH_SCREEN_DISABLED
 // #define MY_SIGNAL_REPORT_ENABLED
@@ -33,15 +33,15 @@ RF24_PA_HIGH = 	-6dBm 		2	R_TX_Powerlevel_Pct
 RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 */
 
-#define MY_RF24_PA_LEVEL 					RF24_PA_MIN
+#define MY_RF24_PA_LEVEL 					RF24_PA_LOW
 #define MY_RADIO_RF24
 #define MY_RF24_CHANNEL 					96
 // #define MY_TRANSPORT_WAIT_READY_MS 			(5000ul)
 
-#define MY_NODE_ID 							150
-// #define MY_PARENT_NODE_ID 					50
+#define MY_NODE_ID 							180
+// #define MY_PARENT_NODE_ID 					51		//without this the node broadcasts everything to parent 255 (dont know what happens, if 2 repeater receive this at the same time)
 // #define MY_PARENT_NODE_IS_STATIC
-// #define MY_PASSIVE_NODE
+#define MY_PASSIVE_NODE
 
 
 // ###################   Node Spezifisch   #####################
@@ -58,15 +58,15 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 // #define CHILD_ID_BAT_VREF       			1         					//ID für Batterie Werte Intern per VRef --> Bei Betrieb mit 2-3 Batterien an Arduino mit abgelöteten Spannungsregler
 // #define CHILD_ID_DEBUG          			2							// Debug setzen und lesen
 
-#define OW_RESOLUTION						10
-#define SLEEP_TIME							20000
+#define OW_RESOLUTION						12
+#define SLEEP_TIME							300000
 #define MAX_ATTACHED_DS18B20      			8							//mehr als 8 funktioniert nicht mit den vorhandenen Methoden
 
 #define EEPROM_DEVICE_NAME_LENGTH   		8
 #define EEPROM_DEVICE_ID_LENGTH     		8
 #define EEPROM_DEVICE_CNT_STEP				(EEPROM_DEVICE_NAME_LENGTH+EEPROM_DEVICE_ID_LENGTH) //Klammer könnte evtl. weg
 //Werte für 
-#define EEPROM_DEVICE_DEBUG_Level   		0		// DebugLevel, die nächsten 7 uint8_ts sind für Debug reserviert
+#define EEPROM_DEVICE_DEBUG_LEVEL   		0		// DebugLevel, die nächsten 7 uint8_ts sind für Debug reserviert
 #define EEPROM_DEVICE_CHECKSUM				1		// Checksum of connected devices (first + second byte from Device ID)
 #define EEPROM_DEVICE_DEBUG_7 				7
 
@@ -77,7 +77,7 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 
 
 
-#define	WITH_BATTERIE
+#define	WITH_BATTERY
 
 
 
@@ -104,8 +104,8 @@ uint8_t DevLastCheckSum = 0;
 //	0 	off
 //	1	showEEpromHex()
 //	2
-//	3	scanne nach aktuell angeschlossenen OwDevices und gebe für die restlichen den Speicher im EEPROM frei
-//	4 	clear all EEprom, switsche danach automatisch zurück auf debugLevel=0
+//	3	not implemented yet -> scanne nach aktuell angeschlossenen OwDevices und gebe für die restlichen den Speicher im EEPROM frei
+//	4 	clear all EEprom, switch back to debugLevel=0
 //	5	saveState(EEPROM_DEVICE_TEMP_ID_START, 65);// OwID an Index 1 erste Stelle ungültig machen
 //	9	Reboot
 
@@ -122,14 +122,14 @@ void before()
 	DEBUG_PRINTLN("before");
 	
 	
-	debugLevel = loadState(EEPROM_DEVICE_DEBUG_Level); 	//8 Bit
+	debugLevel = loadState(EEPROM_DEVICE_DEBUG_LEVEL); 	//8 Bit
 	DevCheckSum = loadState(EEPROM_DEVICE_CHECKSUM); 	//8 Bit
 	DevLastCheckSum = DevCheckSum;
 	if (debugLevel>MAX_DEBUG_LEVEL)
 	{
 		debugLevel=0;
 		// DEBUG_PRINTLN(F("Save: debugLevel to 0"));
-		saveState(EEPROM_DEVICE_DEBUG_Level, debugLevel);//8 Bit
+		saveState(EEPROM_DEVICE_DEBUG_LEVEL, debugLevel);//8 Bit
 	}
 	DEBUG_PRINT(F("DevCheckSum level fetched from EEPROM "));
 	DEBUG_PRINTLN(DevCheckSum);
@@ -140,10 +140,11 @@ void before()
 	sensors.begin();
 	vRef.begin();
 	
-	showEEpromHex();
-	showEEpromChar();
-	// ClearDebug();
-	// ClearEeprom();
+	#ifdef SER_DEBUG
+		showEEpromHex();
+		showEEpromChar();
+	#endif
+
 	sortOwAdresses();//prüft das EEPROM, welche TempAddress für OW Geräte bekannt sind und waren
 	checkResolution();
 
@@ -174,7 +175,6 @@ void presentation()
 	{
 		if (cThermoKnown[i] == 'Y')//weitermachen, wenn Y
 		{
-			DEBUG_PRINTLN("sprintf");
 			sprintf(SendString, "%s_%d",ChildTextTemp,i);
 			present(CHILD_OW_TEMP+i, 		S_TEMP,		SendString);
 			sprintf(SendString, "%s_%d",ChildTextName,i);
@@ -192,7 +192,8 @@ void loop()//ToDo: getResolution je Sensor-Adresse, wenn anders als festgeletzte
 	
 	sensors.requestTemperatures();
 	//int16_t conversionTime = sensors.millisToWaitForConversion(sensors.getResolution());
-	wait(750);//conversionTime usually is 750 ms 
+	// wait(750);//conversionTime usually is 750 ms 
+	smartSleep(750);//conversionTime usually is 750 ms 
 	if (DevCheckSum != DevLastCheckSum)	//New Devices on OW Bus have to be presented
 	{
 		DEBUG_PRINTLN("DevCheckSum != DevLastCheckSum");
@@ -214,26 +215,27 @@ void loop()//ToDo: getResolution je Sensor-Adresse, wenn anders als festgeletzte
 			// debugMessage("loop: gotTempC: ",String(temperature,DEC));
 			if (temperature != -127.00 && temperature != 85.00) 
 			{
-				send(MsgOwTemp.setSensor(CHILD_OW_TEMP+i).setType(V_TEMP).set(temperature,1));//Temp mit einer Nachkommastelle senden
-				send(MsgOwTemp.setSensor(CHILD_OW_TEMP+i).setType(V_ID).set(tempDeviceAddress,8));//Temp mit einer Nachkommastelle senden
+				send(msgOwTemp.setSensor(CHILD_OW_TEMP+i).setType(V_TEMP).set(temperature,1));//Temp mit einer Nachkommastelle senden
+				send(msgOwTemp.setSensor(CHILD_OW_TEMP+i).setType(V_ID).set(tempDeviceAddress,8));//Temp mit einer Nachkommastelle senden
 				// send(msgOwID.setSensor(CHILD_OW_TEMP+i).set(tempDeviceAddress,8));
 				LoadName(i);//Load from EEPROM to volatile char cThermoName
-				// send(MsgOwName.setSensor(CHILD_OW_TEMP+i).set(ArrayToChar8(cThermoName)));
+				// send(msgOwName.setSensor(CHILD_OW_TEMP+i).set(ArrayToChar8(cThermoName)));
 				// DEBUG_PRINT("OW Name: ");
 				// DEBUG_PRINTLN(cThermoName);
-				send(MsgOwName.setSensor(CHILD_OW_TEMP_NAME+i).set(cThermoName));
+				send(msgOwName.setSensor(CHILD_OW_TEMP_NAME+i).set(cThermoName));
 			}
 		}
 	}
 
-	send(MsgDebugLevel.set(debugLevel));
-	send(MsgDebugOWConList.set(cThermoKnown));
+	send(msgDebugLevel.set(debugLevel));
+	send(msgDebugOWConList.set(cThermoKnown));
 
-
-	BatteryVRef();
+	#ifdef WITH_BATTERY
+		BatteryVRef();
+	#endif
 	
-	// smartSleep((uint32_t)SLEEP_TIME);
-	wait((uint32_t)SLEEP_TIME);
+	smartSleep((uint32_t)SLEEP_TIME);
+	// wait((uint32_t)SLEEP_TIME);
 
 }
 
@@ -298,14 +300,14 @@ void sortOwAdresses()
 				nextFreeAddress=getNextFreeEepromAddress();
 				if (nextFreeAddress < MAX_ATTACHED_DS18B20)
 				{
-					send(MsgDebugReturnString.set(F("Neues OW Device")));
+					send(msgDebugReturnString.set(F("Neues OW Device")));
 					SaveOwID(nextFreeAddress,tempDeviceAddress);
 					cThermoKnown[nextFreeAddress]='Y';
 				}
 				else
 				{
 					cThermoKnown[nextFreeAddress]='N';
-					send(MsgDebugReturnString.set(F("Speicher EEPROM ist voll")));
+					send(msgDebugReturnString.set(F("Speicher EEPROM ist voll")));
 				}
 			}
 		}
@@ -326,13 +328,13 @@ void sortOwAdresses()
 	DEBUG_PRINT("DevCheckSum: ");
 	DEBUG_PRINTLN(DevCheckSum);
 	DevCheckSum=thisDevCheckSum;
-	send(MsgDebugOWDevCount.set(DeviceCounter)); //Update controller with number of found devices
+	send(msgDebugOWDevCount.set(DeviceCounter)); //Update controller with number of found devices
 }
 
 
 void SaveOwID(uint8_t nextFreeAddress, DeviceAddress tempDeviceAddress)
 {
-	send(MsgDebugReturnString.set(F("SaveOwID")));
+	send(msgDebugReturnString.set(F("SaveOwID")));
 	uint8_t tempAddressIndex=EEPROM_DEVICE_TEMP_ID_START+nextFreeAddress*EEPROM_DEVICE_CNT_STEP;
 	for (uint8_t j = 0; j<EEPROM_DEVICE_ID_LENGTH; j++)
 	{
@@ -410,7 +412,7 @@ uint8_t getNextFreeEepromAddress()
 void ClearEeprom()
 {
 	// debugMessage("ClearEeprom", "");
-	send(MsgDebugReturnString.set(F("EEPROM cleared")));
+	send(msgDebugReturnString.set(F("EEPROM cleared")));
 	// for (uint8_t i = EEPROM_DEVICE_TEMP_ID_START; i < EEPROM_DEVICE_TEMP_ID_START+MAX_ATTACHED_DS18B20*EEPROM_DEVICE_CNT_STEP; i++)
 	for (uint8_t i = 3; i < EEPROM_DEVICE_TEMP_ID_START+MAX_ATTACHED_DS18B20*EEPROM_DEVICE_CNT_STEP; i++)
 	{
@@ -468,16 +470,20 @@ void receive(const MyMessage &message)
 				debugLevel = message.getByte();
 				if (debugLevel == 3)
 				{
-					send(MsgDebugReturnString.set(F("showEEpromHex")));
-					showEEpromHex();
+					#ifdef SER_DEBUG
+						send(msgDebugReturnString.set(F("showEEpromHex")));
+						showEEpromHex();
+					#else
+						send(msgDebugReturnString.set(F("dbg3 not possible")));
+					#endif
 				}
 				if (debugLevel == 4)
 				{
 					ClearEeprom();
 					debugLevel=0;
 				
-					saveState(EEPROM_DEVICE_DEBUG_Level, debugLevel);//8 Bit
-					send(MsgDebugLevel.set(debugLevel));
+					saveState(EEPROM_DEVICE_DEBUG_LEVEL, debugLevel);//8 Bit
+					send(msgDebugLevel.set(debugLevel));
 					#ifdef SER_DEBUG
 						showEEpromHex();
 					#endif
@@ -485,26 +491,17 @@ void receive(const MyMessage &message)
 				}
 				if (debugLevel == 5)
 				{
-					send(MsgDebugReturnString.set(F("Dbg3 Destroy OWID 0")));
+					send(msgDebugReturnString.set(F("Dbg3 Destroy OWID 0")));
 					saveState(EEPROM_DEVICE_TEMP_ID_START, 65);// OwID an Index 1 erste Stelle ungültig machen
 				}				
 				if (debugLevel == 9)
 				{
-					send(MsgDebugReturnString.set(F("hwReboot")));
+					send(msgDebugReturnString.set(F("hwReboot")));
 					hwReboot();
 				}
 			}
 			break;
-			// case V_VAR2: 
-			// {
 
-			// }
-			// break;
-			// case V_VAR3: 
-			// {
-
-			// }
-			// break;
 		}
 	}
 }
@@ -547,7 +544,7 @@ void LoadName(uint8_t deviceIndex)//lädt in die globale Variable cThermoName vo
 
 void SaveName(uint8_t deviceIndex, String sName)
 {
-	send(MsgDebugReturnString.set(F("SaveName")));
+	send(msgDebugReturnString.set(F("SaveName")));
 	// debugMessage("SaveName für ID: ",String(deviceIndex,DEC));
 	uint8_t EepromIndex=EEPROM_DEVICE_TEMP_NAME_START+deviceIndex*EEPROM_DEVICE_CNT_STEP;
 	// debugMessage("Freie Adresse an :",String(EepromIndex,DEC));
