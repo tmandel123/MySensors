@@ -1,16 +1,18 @@
 //	###################   Debugging   #####################
-#define MY_DEBUG								//nur mit Debug aktiviert können Sends im Abstand von 50ms weitergeleitet werden. Sonst gibt es zu viele NACKs
+// #define MY_DEBUG								//nur mit Debug aktiviert können Sends im Abstand von 50ms weitergeleitet werden. Sonst gibt es zu viele NACKs
 // #define SER_DEBUG
 // #define MY_DEBUG_VERBOSE_RF24								//Testen, welche zusätzlichen Infos angezeigt werden
 #define MY_SPLASH_SCREEN_DISABLED
-#define MY_SIGNAL_REPORT_ENABLED
+// #define MY_SIGNAL_REPORT_ENABLED
 
 //	###################   Features   #####################
 #define MY_REPEATER_FEATURE
 
 //	###################   LEDs   #####################
-#define MY_WITH_LEDS_BLINKING_INVERSE
-#define MY_DEFAULT_TX_LED_PIN 				(8)
+// #define MY_WITH_LEDS_BLINKING_INVERSE
+#define MY_DEFAULT_RX_LED_PIN				6
+#define MY_DEFAULT_TX_LED_PIN 				7
+#define MY_DEFAULT_ERR_LED_PIN				8
 #define MY_DEFAULT_LED_BLINK_PERIOD 		10
 
 // ###################   Transport   #####################
@@ -25,23 +27,17 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 #define MY_RF24_CHANNEL 					96
 #define MY_TRANSPORT_WAIT_READY_MS 			(5000ul)
 
-#define MY_NODE_ID 							51
+#define MY_NODE_ID 							50
 // #define MY_PARENT_NODE_ID 					50
 // #define MY_PARENT_NODE_IS_STATIC
 // #define MY_PASSIVE_NODE
 
 
 // ###################   Node Spezifisch   #####################
-#define SKETCH_VER            				"1.2-006"        			// Sketch version
+#define SKETCH_VER            				"1.2-007"        			// Sketch version
 #define SKETCH_NAME           				"Repeater Node"   		// Optional child sensor name
-// #define CHILD_INFO							0
-// #define CHILD_INFO_TEXT						"Info"
-
-
-
 
 #define HEARTBEAT_INTERVAL        			300000        //später alle 5 Minuten, zum Test alle 30 Sekunden
-
 
 
 #include <MySensors.h>
@@ -63,8 +59,6 @@ void preHwInit()
 void before()
 {
 	DEBUG_PRINTLN("before...");
-	// DEBUG_PRINT("Version: ");
-	// DEBUG_PRINTLN(SKETCH_VER);
 }
 
 void setup()
@@ -77,7 +71,6 @@ void presentation()
 	DEBUG_PRINTLN("presentation...");
 	mySendSketchInfo();
 	myPresentation();
-	// present(CHILD_INFO, S_INFO, CHILD_INFO_TEXT);
 }
 
 void loop()
@@ -86,9 +79,7 @@ void loop()
 	if (currentTime - lastHeartBeat > (uint32_t)HEARTBEAT_INTERVAL)
 	{
 		sendHeartbeat();  
-		// send(hwTime.set(currentTime),true);
 		lastHeartBeat = currentTime;
 		myHeartBeatLoop();
-		// PrintRF24Transport();
 	}
 }
