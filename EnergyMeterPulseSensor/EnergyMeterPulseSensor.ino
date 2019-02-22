@@ -40,7 +40,7 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 #define MY_RADIO_RF24
 #define MY_RF24_CHANNEL 					96
 // #define MY_TRANSPORT_WAIT_READY_MS 			(5000ul)
-#define MY_RF24_SANITY_CHECK
+#define MY_TRANSPORT_SANITY_CHECK
 
 #define MY_NODE_ID 							100
 // #define MY_PARENT_NODE_ID 					50
@@ -226,7 +226,7 @@ void loop()
 		}
 		else
 		{
-			// digitalWrite(PULSE_LED,LOW);
+			digitalWrite(PULSE_LED,LOW);
 		}
 		lastSend = currentTime;
 	} 
