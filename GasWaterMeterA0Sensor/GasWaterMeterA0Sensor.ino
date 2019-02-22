@@ -49,15 +49,15 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 // #define MY_REPEATER_FEATURE
 #define MY_RF24_CHANNEL 96									// Für Testphase deaktivieren, damit Kanal 76 aktiv wird (Prod=96 Test=76)
 #define MY_TRANSPORT_WAIT_READY_MS (5000ul)
-#define MY_RF24_SANITY_CHECK
+#define MY_TRANSPORT_SANITY_CHECK
 // #define MY_PARENT_NODE_ID 50
 // #define MY_PARENT_NODE_ID 0
 // #define MY_PARENT_NODE_IS_STATIC
 // #define MY_SPLASH_SCREEN_DISABLED
-#define MY_RF24_SANITY_CHECK
 
-#define WATER
-// #define GAS
+
+// #define WATER
+#define GAS
 
 #ifdef WATER
 	#define MY_NODE_ID 101									// Water Node ID
