@@ -27,7 +27,7 @@
 #define	MIN_ASCII_CHAR						32
 #define MAX_ASCII_CHAR						128
 
-#define DIGITAL_INPUT_SENSOR				3					// The digital input you attached your light sensor.  (Only 2 and 3 generates interrupt!)
+#define DIGITAL_INPUT_SENSOR				3					// EnergyMeterPulseSensor, 
 #define PULSE_LED							5
 
 #define CHILD_OW_TEMP						10
@@ -39,15 +39,17 @@
 #define CHILD_OW_TEMP_NAME					20
 #define	CHILD_OW_TEMP_NAME_TEXT				("OW_Name")			//flashhelper is not working with functions in OneWireMaster.ino
 
-
-#define CHILD_SERVO_STATE					20
-#define CHILD_SERVO_STATE_TEXT				(F("Servo_State"))
+#define CHILD_OW_RESOLUTION					28
+#define	CHILD_OW_RESOLUTION_TEXT			(F("OW_Resolution"))
 
 #define CHILD_MULTI_BUTTON 					30
 #define CHILD_MULTI_BUTTON_TEXT				(F("Mlt_Button"))
 
 #define CHILD_POWER_METER 					35
 #define CHILD_POWER_METER_TEXT				(F("PowerMeter"))
+
+#define CHILD_SERVO_STATE					40
+#define CHILD_SERVO_STATE_TEXT				(F("Servo_State"))
 
 #define CHILD_DEBUG_LEVEL					70
 #define	CHILD_DEBUG_LEVEL_TEXT				(F("Dbg_Level"))
@@ -86,6 +88,7 @@ MyMessage msgOwTemp							(CHILD_OW_TEMP,  				V_TEMP);			//10-17
 MyMessage msgDebugOWConList					(CHILD_OW_CONNECTED,			V_TEXT);			//18
 MyMessage msgDebugOWDevCount				(CHILD_OW_DEV_COUNT,			V_TEXT);			//19
 MyMessage msgOwName							(CHILD_OW_TEMP_NAME,  			V_TEXT);			//20-27
+MyMessage msgOwResolution					(CHILD_OW_RESOLUTION,  			V_TEXT);			//28
 
 
 MyMessage msgMultiButton					(CHILD_MULTI_BUTTON,			V_TEXT);			//30
@@ -142,6 +145,7 @@ void myPresentation()
 	#if MY_NODE_ID > 99 && MY_NODE_ID < 110
 		present(CHILD_NEW_METER_VALUE,		S_INFO,				CHILD_NEW_METER_VALUE_TEXT);
 	#endif
+
 	present(CHILD_DEBUG_RETURN, 		S_INFO,				CHILD_DEBUG_RETURN_TEXT);
 
 	#ifdef WITH_BATTERY
@@ -187,7 +191,7 @@ void myHeartBeatLoop()
 		send(msgParentNode.set("AUTO"));
 		// #endif
 	#else
-		send(msgParentNode.set("NoAuto"));
+		send(msgParentNode.set("fixed"));
 	#endif	
 
 
