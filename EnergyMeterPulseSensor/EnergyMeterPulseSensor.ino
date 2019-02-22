@@ -52,7 +52,7 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 
 
 // ###################   Node Spezifisch   #####################
-#define SKETCH_VER            				"1.5-004"        		// Sketch version
+#define SKETCH_VER            				"1.5-005"        		// Sketch version
 #define SKETCH_NAME           				"EnergyMeter"   		// Optional child sensor name
 
 
@@ -65,6 +65,7 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 
 #define EEPROM_DEVICE_DEBUG_LEVEL			0					//8  Bit
 #define EEPROM_METER_VALUE					1					//32 Bit
+#define	DEFAULT_METER_VALUE					7454137				// last seen Value from Enerny Meter to set to the EEPROM
 
 #define SEND_WAIT							50
 // #define REQUEST_ACK							true
@@ -123,8 +124,9 @@ void before()
 	uint32_t MeterValue = readEeprom32(EEPROM_METER_VALUE);
 	if (MeterValue == 0xFFFFFFFF)
 	{
-		DEBUG_PRINT("EEPROM_METER_VALUE to 0");
-		MeterValue=0;
+		writeEeprom32(EEPROM_METER_VALUE, DEFAULT_METER_VALUE);	
+		DEBUG_PRINT("EEPROM_METER_VALUE to default");
+		MeterValue=DEFAULT_METER_VALUE;
 	}
 	DEBUG_PRINT("readEeprom32: EEPROM_METER_VALUE ");
 	DEBUG_PRINTLN(MeterValue);
