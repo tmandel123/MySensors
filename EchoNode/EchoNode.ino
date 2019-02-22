@@ -21,7 +21,7 @@ Grundsätzliche funktionsweise:
 */
 
 //	###################   Debugging   #####################
-#define MY_DEBUG
+// #define MY_DEBUG
 #define SER_DEBUG
 // #define MY_DEBUG_VERBOSE_RF24								//Testen, welche zusätzlichen Infos angezeigt werden
 #define MY_SPLASH_SCREEN_DISABLED
@@ -32,8 +32,9 @@ Grundsätzliche funktionsweise:
 
 //	###################   LEDs   #####################
 // #define MY_WITH_LEDS_BLINKING_INVERSE
-#define MY_DEFAULT_TX_LED_PIN 				8
-#define MY_DEFAULT_RX_LED_PIN				7
+#define MY_DEFAULT_RX_LED_PIN				6
+#define MY_DEFAULT_TX_LED_PIN 				7
+#define MY_DEFAULT_ERR_LED_PIN				8
 #define MY_DEFAULT_LED_BLINK_PERIOD 		10
 
 // ###################   Transport   #####################
@@ -43,11 +44,11 @@ RF24_PA_LOW = -12dBm
 RF24_PA_HIGH = -6dBm 
 RF24_PA_MAX = 0dBm
 */
-#define MY_RF24_PA_LEVEL 					RF24_PA_LOW
+#define MY_RF24_PA_LEVEL 					RF24_PA_HIGH
 #define MY_RADIO_RF24
 #define MY_RF24_CHANNEL 					96
 // #define MY_TRANSPORT_WAIT_READY_MS			(5000ul)
-// #define MY_RF24_SANITY_CHECK
+// #define MY_TRANSPORT_SANITY_CHECK
 
 #define MY_NODE_ID 							225
 #define MY_PARENT_NODE_ID 					0
@@ -56,9 +57,9 @@ RF24_PA_MAX = 0dBm
 
 
 // ###################   Node Spezifisch   #####################
-#define SKETCH_VER            				"1.0-005"        			// Sketch version
+#define SKETCH_VER            				"1.0-006"        			// Sketch version
 #define SKETCH_NAME           				"Echo Node"   		// Optional child sensor name
-#define MY_ECHO_NODE											//for some mir myPresentation() sendings
+#define MY_ECHO_NODE											//for some more myPresentation() sendings
 
 // #define LED_PIN 							6						// Arduino pin attached to MOSFET Gate pin
 // #define SEND_WAIT							20						// 20ms reicht nicht aus, dann kommt immer NACK, bei 22ms läuft es (mit Repeater sollten es 50ms sein)							
@@ -66,7 +67,7 @@ RF24_PA_MAX = 0dBm
 
 #define HEARTBEAT_INTERVAL        			300000        //später alle 5 Minuten, zum Test alle 30 Sekunden
 // #define ECHO_TXFAIL_RESET_TIME     			10000
-#define MAX_ECHO_WAIT	        			3000
+#define MAX_ECHO_WAIT	        			1000
 
 
 
@@ -130,6 +131,7 @@ void loop()
 
 		if (GotEchoResponse)
 		{
+			wait(20);
 			if (EchoRuntime > 0)
 			{
 				TxGoodCounter++;
@@ -150,8 +152,8 @@ void loop()
 			TxFailCounter++;
 		}
 		
-		uint32_t PacketRatio=(TxGoodCounter/(TxGoodCounter+TxFailCounter)*100);
-		send(msgPacketRatio.set(PacketRatio));
+		float PacketRatio=float(float(TxGoodCounter)/float(TxGoodCounter+TxFailCounter)*100.0);
+		send(msgPacketRatio.set(PacketRatio,2));
 		
 		nowRSSI=RF24_getSendingRSSI();
 		avgRSSI=((avgRSSI*7)+(nowRSSI))/8;
@@ -159,6 +161,8 @@ void loop()
 	
 		DEBUG_PRINT("TX Fail: ");
 		DEBUG_PRINT(TxFailCounter);
+		DEBUG_PRINT(" TX Good: ");
+		DEBUG_PRINT(TxGoodCounter);
 		DEBUG_PRINT(" Ratio ");
 		DEBUG_PRINT(PacketRatio);
 		DEBUG_PRINT(" avgRSSI ");
