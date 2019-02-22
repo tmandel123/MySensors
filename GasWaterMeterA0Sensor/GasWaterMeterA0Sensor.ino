@@ -39,10 +39,10 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 
 */
 
-#define SKETCH_VER						"2.4.1-018"				// Sketch version
+#define SKETCH_VER						"2.4.1-019"				// Sketch version
 #define MY_RADIO_RF24
 
-#define MY_DEBUG //muss vor MySensors.h stehen
+// #define MY_DEBUG //muss vor MySensors.h stehen
 #define SER_DEBUG
 
 
@@ -59,12 +59,14 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 // #define WATER
 #define GAS
 
+
 #ifdef WATER
 	#define MY_NODE_ID 101									// Water Node ID
 	#define SKETCH_NAME					"Water Meter"		// Optional child sensor name
 	#define PULSE_FACTOR				1000				// Number of blinks per m3 of your meter (One rotation/liter)
 	#define MAX_FLOW					40					// Max flow (l/min) value to report. This filters outliers.
 	#define CHILD_NAME					"Watermeter"		// Optional child sensor name
+	#define	DEFAULT_METER_VALUE			263191				// last seen Value from Meter to set to the EEPROM
 	uint16_t highThreshold = 			150;					// higher threshold for analog readings
 	uint16_t lowThreshold = 			80;					// lower threshold for analog readings
 	uint16_t maxValue = 				210;
@@ -75,16 +77,18 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 	#define PULSE_FACTOR				100					// Number of blinks per m3 of your meter (One rotation/liter)
 	#define MAX_FLOW					40					// Max flow (l/min) value to report. This filters outliers.
 	#define CHILD_NAME					"Gasmeter"			// Optional child sensor name
+	#define	DEFAULT_METER_VALUE			381853				// last seen Value from Meter to set to the EEPROM
 	uint16_t highThreshold =			500;				// higher threshold for analog readings
 	uint16_t lowThreshold =				494;				// lower threshold for analog readings
 	uint16_t maxValue = 				516;
 	uint16_t minValue = 				486;
 #else //TEST
-	#define MY_NODE_ID 223									// Test Node ID
+	#define MY_NODE_ID 201									// Test Node ID
 	#define SKETCH_NAME					"-TEST- Meter Node"	// Optional child sensor name
 	#define PULSE_FACTOR				100					// Number of blinks per m3 of your meter (One rotation/liter)
 	#define MAX_FLOW					40					// Max flow (l/min) value to report. This filters outliers.
 	#define CHILD_NAME					"-Test- Child"			// Optional child sensor name
+	#define	DEFAULT_METER_VALUE			381749				// last seen Value from Meter to set to the EEPROM
 	uint16_t highThreshold =			500;				// higher threshold for analog readings
 	uint16_t lowThreshold =				494;				// lower threshold for analog readings
 	uint16_t maxValue = 				516;
@@ -136,7 +140,7 @@ MyMessage lastCounterMsg(CHILD_ID, V_VAR1); 				//dieser Wert wird vom Controlle
 MyMessage analogValue	(CHILD_ID_ANALOG, V_VAR1);
 MyMessage MsgMinValue	(CHILD_ID_ANALOG, V_VAR2);
 MyMessage MsgMaxValue	(CHILD_ID_ANALOG, V_VAR3);
-MyMessage MeterValue	(CHILD_ID_ANALOG, V_VAR5);
+MyMessage msgMeterValue	(CHILD_ID_ANALOG, V_VAR5);
 
 MyMessage debugValue	(CHILD_ID_DEBUG, V_VAR1);
 MyMessage thValueMin	(CHILD_ID_DEBUG, V_VAR2);
@@ -202,8 +206,15 @@ void setup()
 	hwPinMode(PULSE_LED, OUTPUT);
 	
 	uint32_t MeterValue = readEeprom32(EEPROM_METER_VALUE);
-	// DEBUG_PRINT("readEeprom32: EEPROM_METER_VALUE ");
-	// DEBUG_PRINTLN(MeterValue);
+	if (MeterValue == 0xFFFFFFFF)
+	{
+		writeEeprom32(EEPROM_METER_VALUE, DEFAULT_METER_VALUE);	
+		DEBUG_PRINTLN("EEPROM_METER_VALUE to default");
+		MeterValue=DEFAULT_METER_VALUE;
+	}
+	DEBUG_PRINT("readEeprom32: EEPROM_METER_VALUE ");
+	DEBUG_PRINTLN(MeterValue);
+	
 	pulseCount = MeterValue;
 	oldPulseCount = MeterValue;
 	volume = (float)pulseCount / ((float)PULSE_FACTOR);
@@ -255,8 +266,7 @@ void setup()
 
 
 void presentation()  {
-	
-	sendSketchInfo(SKETCH_NAME, SKETCH_VER " " __TIME__ " " __DATE__);
+	mySendSketchInfo();
 #ifdef WATER	
 	present(CHILD_ID, S_WATER, CHILD_NAME, "Counter Child");       
 #else
@@ -323,11 +333,11 @@ void loop()
 		// DEBUG_PRINTLN("IT: update");
 		
 		//Min und Max etwas Näher an den Durchschnitt heranziehen, gibt es auch bei der Flowberechnung
-		if (minValue < (midValue - 4 ))
+		if (minValue < (midValue - 1 ))
 		{
 			minValue++;
 		}
-		if (maxValue > (midValue + 4 ))
+		if (maxValue > (midValue + 1 ))
 		{
 			maxValue--;
 		}
@@ -352,7 +362,7 @@ void loop()
 		wait(SEND_WAIT);
 		send(volumeMsg.set(volume, 3),REQUEST_ACK);
 		wait(SEND_WAIT);
-		send(MeterValue.set(pulseCount),REQUEST_ACK);
+		send(msgMeterValue.set(pulseCount),REQUEST_ACK);
 		wait(SEND_WAIT);
 		
 		lastInternalsUpdate = currentTime;
@@ -374,11 +384,11 @@ void loop()
 			send(MsgMaxValue.set(maxValue));
 			wait(SEND_WAIT);
 			//Min und Max etwas Näher an den Durchschnitt heranziehen
-			if (minValue < (midValue - 4 ))
+			if (minValue < (midValue - 1 ))
 			{
 				minValue++;
 			}
-			if (maxValue > (midValue + 4 ))
+			if (maxValue > (midValue + 1 ))
 			{
 				maxValue--;
 			}
@@ -710,6 +720,46 @@ void showEEprom()
 		}	
 		DEBUG_PRINTLN("");
 	}
+}
+
+void getCompileDateTime(char const *date, char *buff) {
+    int month, day, year;
+    static const char month_names[] = "JanFebMarAprMayJunJulAugSepOctNovDec";
+    sscanf(date, "%s %d %d", buff, &day, &year);
+    month = (strstr(month_names, buff)-month_names)/3+1;
+    sprintf(buff, "%d%02d%02d", year, month, day);
+}
+
+
+
+void mySendSketchInfo()
+{
+	char CompileDate[8];
+	getCompileDateTime(__DATE__, CompileDate);
+	
+	char SendString[25] = ""; //mehr als 25 Zeichen werden nicht übertragen
+	uint8_t i=0;
+	for (uint8_t j=0;j<(sizeof(SKETCH_VER)-1);j++)
+	{
+		SendString[j]=SKETCH_VER[j];
+		i++;
+	}
+	SendString[i]=' ';
+	i++;
+	for (uint8_t j=0;j<(sizeof(CompileDate));j++)
+	{
+		SendString[i]=CompileDate[j];
+		i++;
+	}
+	SendString[i]=' ';
+	i++;
+
+	for (uint8_t j=0;j<5;j++)
+	{
+		SendString[i]=__TIME__[j];
+		i++;
+	}
+	sendSketchInfo(SKETCH_NAME, SendString );
 }
 
 /*
