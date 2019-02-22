@@ -1,14 +1,6 @@
-//	20180205	1.5.06	Zusammenführen von MYSOneWireMaster_V1.4 und MYSOneWireMaster_V1.5
-//						Steuern ob Sensor mit oder ohne Batterie betrieben wird
-//	20180216	1.6.01	Scannen mit OneWire Library und bekannte Adressen ins EEPROM schreiben
-//						bei before() auslesen der Resolution von DS18B20 und dauerhaft auf neuen Wert setzen, als dieser Wert von OW_RESOLUTION abweicht
-
-// ToDo für Version 1.7: per #defines einstellen ob Strom oder Batteriebetrieb (Strom immer 5V, Batterie immer 3,3V (zumindest bei onewire)
-
-
 //	###################   Debugging   #####################
 // #define MY_DEBUG
-// #define SER_DEBUG
+#define SER_DEBUG
 // #define MY_DEBUG_VERBOSE_RF24								//Testen, welche zusätzlichen Infos angezeigt werden
 // #define MY_SPLASH_SCREEN_DISABLED
 // #define MY_SIGNAL_REPORT_ENABLED
@@ -22,7 +14,9 @@
 
 //	###################   LEDs   #####################
 // #define MY_WITH_LEDS_BLINKING_INVERSE
-// #define MY_DEFAULT_TX_LED_PIN 				(8)
+// #define MY_DEFAULT_RX_LED_PIN				6
+// #define MY_DEFAULT_TX_LED_PIN 				7
+// #define MY_DEFAULT_ERR_LED_PIN				8
 // #define MY_DEFAULT_LED_BLINK_PERIOD 		10
 
 // ###################   Transport   #####################
@@ -37,15 +31,16 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 #define MY_RADIO_RF24
 #define MY_RF24_CHANNEL 					96
 // #define MY_TRANSPORT_WAIT_READY_MS 			(5000ul)
+#define MY_TRANSPORT_SANITY_CHECK
 
-#define MY_NODE_ID 							180
+#define MY_NODE_ID 							150
 // #define MY_PARENT_NODE_ID 					51		//without this the node broadcasts everything to parent 255 (dont know what happens, if 2 repeater receive this at the same time)
 // #define MY_PARENT_NODE_IS_STATIC
-#define MY_PASSIVE_NODE
+// #define MY_PASSIVE_NODE
 
 
 // ###################   Node Spezifisch   #####################
-#define SKETCH_VER            				"1.7-003"        			// Sketch version
+#define SKETCH_VER            				"1.7-005"        			// Sketch version
 #define SKETCH_NAME           				"OneWireMaster"   		// Optional child sensor name
 
 // #define HEARTBEAT_INTERVAL        			600000        //später alle 5 Minuten, zum Test alle 30 Sekunden
@@ -53,10 +48,6 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 
 #define ONE_WIRE_BUS 4 // Pin where dallas sensor is connected 
 
-
-																	//Batterie ohne Spannungsteiler direkt an A0 anschließen und analogReference(DEFAULT);(VREF bringt hier immer den gleichen Wert)
-// #define CHILD_ID_BAT_VREF       			1         					//ID für Batterie Werte Intern per VRef --> Bei Betrieb mit 2-3 Batterien an Arduino mit abgelöteten Spannungsregler
-// #define CHILD_ID_DEBUG          			2							// Debug setzen und lesen
 
 #define OW_RESOLUTION						12
 #define SLEEP_TIME							300000
@@ -77,16 +68,12 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 
 
 
-#define	WITH_BATTERY
-
-
-
+// #define	WITH_BATTERY
 
 #include <MySensors.h>
 #include <DallasTemperature.h>	// https://github.com/milesburton/Arduino-Temperature-Control-Library Version 3.8.0
 #include <OneWire.h>			// https://www.pjrc.com/teensy/td_libs_OneWire.html Version 2.3.4
 #include "C:\_Lokale_Daten_ungesichert\Arduino\MySensors\CommonFunctions.h" //muss nach allen anderen #defines stehen
-
 
 OneWire oneWire(ONE_WIRE_BUS); // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 DallasTemperature sensors(&oneWire); // Pass the oneWire reference to Dallas Temperature. 
@@ -113,8 +100,8 @@ uint8_t DevLastCheckSum = 0;
 void preHwInit() 
 {
 	DEBUG_SERIAL(MY_BAUD_RATE);
-	delay(20); // bei weniger als 18ms kommt soetwas hier: p⸮Y⸮%⸮⸮⸮⸮ 
-	DEBUG_PRINTLN("preHwInit");
+	// delay(20); // bei weniger als 18ms kommt soetwas hier: p⸮Y⸮%⸮⸮⸮⸮ 
+	// DEBUG_PRINTLN("preHwInit");
 }
 
 void before()
@@ -131,10 +118,8 @@ void before()
 		// DEBUG_PRINTLN(F("Save: debugLevel to 0"));
 		saveState(EEPROM_DEVICE_DEBUG_LEVEL, debugLevel);//8 Bit
 	}
-	DEBUG_PRINT(F("DevCheckSum level fetched from EEPROM "));
+	DEBUG_PRINT(F("DevCheckSum from EEPROM "));
 	DEBUG_PRINTLN(DevCheckSum);
-	
-	
 	
 	// Startup up the OneWire library
 	sensors.begin();
@@ -167,10 +152,10 @@ void presentation()
 	
 	mySendSketchInfo();
 	myPresentation();
-	present(CHILD_OW_CONNECTED, 	S_INFO, 			CHILD_OW_CONNECTED_TEXT);
-	present(CHILD_OW_DEV_COUNT, 	S_INFO, 			CHILD_OW_DEV_COUNT_TEXT);
+	present(CHILD_OW_CONNECTED, 		S_INFO, 		CHILD_OW_CONNECTED_TEXT);
+	present(CHILD_OW_DEV_COUNT, 		S_INFO, 		CHILD_OW_DEV_COUNT_TEXT);
+	present(CHILD_OW_RESOLUTION,		S_INFO,			CHILD_OW_RESOLUTION_TEXT);
 
-	// present(CHILD_ID_DEBUG, S_CUSTOM);
 	for (uint8_t i = 0; i < MAX_ATTACHED_DS18B20; i++)
 	{
 		if (cThermoKnown[i] == 'Y')//weitermachen, wenn Y
@@ -184,7 +169,7 @@ void presentation()
 	}
 }
 
-void loop()//ToDo: getResolution je Sensor-Adresse, wenn anders als festgeletzte Auflösung, dann setResolution (dies wird dauerhaft im EEPROM vom OneWire Gerät gespeichert)
+void loop()
 {
 	sendHeartbeat();  
 	myHeartBeatLoop();
@@ -192,8 +177,12 @@ void loop()//ToDo: getResolution je Sensor-Adresse, wenn anders als festgeletzte
 	
 	sensors.requestTemperatures();
 	//int16_t conversionTime = sensors.millisToWaitForConversion(sensors.getResolution());
-	// wait(750);//conversionTime usually is 750 ms 
-	smartSleep(750);//conversionTime usually is 750 ms 
+	
+	#ifdef WITH_BATTERY
+		smartSleep(750);//conversionTime usually is 750 ms 
+	#else
+		wait(750);//conversionTime usually is 750 ms 
+	#endif
 	if (DevCheckSum != DevLastCheckSum)	//New Devices on OW Bus have to be presented
 	{
 		DEBUG_PRINTLN("DevCheckSum != DevLastCheckSum");
@@ -217,11 +206,7 @@ void loop()//ToDo: getResolution je Sensor-Adresse, wenn anders als festgeletzte
 			{
 				send(msgOwTemp.setSensor(CHILD_OW_TEMP+i).setType(V_TEMP).set(temperature,1));//Temp mit einer Nachkommastelle senden
 				send(msgOwTemp.setSensor(CHILD_OW_TEMP+i).setType(V_ID).set(tempDeviceAddress,8));//Temp mit einer Nachkommastelle senden
-				// send(msgOwID.setSensor(CHILD_OW_TEMP+i).set(tempDeviceAddress,8));
 				LoadName(i);//Load from EEPROM to volatile char cThermoName
-				// send(msgOwName.setSensor(CHILD_OW_TEMP+i).set(ArrayToChar8(cThermoName)));
-				// DEBUG_PRINT("OW Name: ");
-				// DEBUG_PRINTLN(cThermoName);
 				send(msgOwName.setSensor(CHILD_OW_TEMP_NAME+i).set(cThermoName));
 			}
 		}
@@ -229,13 +214,14 @@ void loop()//ToDo: getResolution je Sensor-Adresse, wenn anders als festgeletzte
 
 	send(msgDebugLevel.set(debugLevel));
 	send(msgDebugOWConList.set(cThermoKnown));
+	send(msgOwResolution.set(OW_RESOLUTION));
 
-	#ifdef WITH_BATTERY
+	#ifdef WITH_BATTERY	
 		BatteryVRef();
+		smartSleep((uint32_t)SLEEP_TIME);
+	#else
+		wait((uint32_t)SLEEP_TIME);
 	#endif
-	
-	smartSleep((uint32_t)SLEEP_TIME);
-	// wait((uint32_t)SLEEP_TIME);
 
 }
 
@@ -316,8 +302,8 @@ void sortOwAdresses()
 			DEBUG_PRINTLN("OneWire Bus ist ueberfuellt");
 		}
 		thisDevCheckSum=thisDevCheckSum+tempDeviceAddress[1]+tempDeviceAddress[2]+Index;
-		DEBUG_PRINT("New Checksum: ");
-		DEBUG_PRINTLN(thisDevCheckSum);
+		// DEBUG_PRINT("thisDevCheckSum: ");
+		// DEBUG_PRINTLN(thisDevCheckSum);
 		
 		DeviceCounter++;
 	}
@@ -325,8 +311,8 @@ void sortOwAdresses()
 	{
 		sprintf(cThermoKnown,"%s", "NNNNNNNN");
 	}
-	DEBUG_PRINT("DevCheckSum: ");
-	DEBUG_PRINTLN(DevCheckSum);
+	// DEBUG_PRINT("DevCheckSum: ");
+	// DEBUG_PRINTLN(DevCheckSum);
 	DevCheckSum=thisDevCheckSum;
 	send(msgDebugOWDevCount.set(DeviceCounter)); //Update controller with number of found devices
 }
@@ -435,7 +421,9 @@ void ClearDebug()
 
 void receive(const MyMessage &message)
 {
-	// debugMessage("receive: ", String(message.sensor));
+	DEBUG_PRINT(F("receive for Sensor: "));
+	DEBUG_PRINTLN(message.sensor);
+	
 	for (uint8_t i = 0; i < MAX_ATTACHED_DS18B20; i++)//Speichern der Namen für die DS18B20 Devices
 	{
 		if (cThermoKnown[i] == 'Y')//weitermachen, wenn Y // "Y" funktioniert nicht 'Y' schon
