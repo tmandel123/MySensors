@@ -32,9 +32,9 @@ Grundsätzliche funktionsweise:
 
 //	###################   LEDs   #####################
 // #define MY_WITH_LEDS_BLINKING_INVERSE
-#define MY_DEFAULT_RX_LED_PIN				6
-#define MY_DEFAULT_TX_LED_PIN 				7
-#define MY_DEFAULT_ERR_LED_PIN				8
+#define MY_DEFAULT_RX_LED_PIN				17
+#define MY_DEFAULT_TX_LED_PIN 				18
+#define MY_DEFAULT_ERR_LED_PIN				19
 #define MY_DEFAULT_LED_BLINK_PERIOD 		10
 
 // ###################   Transport   #####################
