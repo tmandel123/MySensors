@@ -28,7 +28,9 @@
 #define MAX_ASCII_CHAR						128
 
 #define DIGITAL_INPUT_SENSOR				3					// EnergyMeterPulseSensor, 
-#define PULSE_LED							5
+#define LED_PWM_PIN							5
+#define LED_DIGITAL_PIN						3
+#define PULSE_LED							8
 
 #define CHILD_OW_TEMP						10
 #define	CHILD_OW_TEMP_TEXT					("OW_Temp")			//flashhelper is not working with functions in OneWireMaster.ino
@@ -50,6 +52,11 @@
 
 #define CHILD_SERVO_STATE					40
 #define CHILD_SERVO_STATE_TEXT				(F("Servo_State"))
+
+#define CHILD_SINGLE_LED_DIMMER				50
+#define CHILD_SINGLE_LED_DIMMER_TEXT		(F("Dimmer"))
+#define CHILD_SINGLE_LED_SWITCH				51
+#define CHILD_SINGLE_LED_SWITCH_TEXT		(F("Switch"))
 
 #define CHILD_DEBUG_LEVEL					70
 #define	CHILD_DEBUG_LEVEL_TEXT				(F("Dbg_Level"))
@@ -96,6 +103,9 @@ MyMessage msgMultiButton					(CHILD_MULTI_BUTTON,			V_TEXT);			//30
 MyMessage msgPowerMeter						(CHILD_POWER_METER,				V_WATT);			//35
 
 MyMessage msgServoState						(CHILD_SERVO_STATE,				V_TEXT);			//40
+
+MyMessage msgDimmerState					(CHILD_SINGLE_LED_DIMMER,		V_DIMMER);			//50
+MyMessage msgSwitchState					(CHILD_SINGLE_LED_SWITCH,		V_STATUS);			//51
 
 MyMessage msgDebugLevel						(CHILD_DEBUG_LEVEL,				V_TEXT);			//70
 MyMessage msgNewMeterValue					(CHILD_NEW_METER_VALUE,			V_TEXT);			//71
