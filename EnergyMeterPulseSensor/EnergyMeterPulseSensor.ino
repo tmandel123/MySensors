@@ -52,7 +52,7 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 
 
 // ###################   Node Spezifisch   #####################
-#define SKETCH_VER            				"1.5-005"        		// Sketch version
+#define SKETCH_VER            				"1.5-006"        		// Sketch version
 #define SKETCH_NAME           				"EnergyMeter"   		// Optional child sensor name
 
 
@@ -284,10 +284,10 @@ void receive(const MyMessage &message)
 
 void onPulse()
 {
-	uint32_t newPulseTime = micros();
+	uint32_t newPulseTime = millis();
 	uint32_t interval = newPulseTime-lastPulseTime;
 	// if (interval<10000L) { // Sometimes we get interrupt on RISING
-	if (interval<(uint32_t)10000) { // Sometimes we get interrupt on RISING
+	if (interval<(uint32_t)100) { // Sometimes we get interrupt on RISING
 		return;
 	}
 	// watt = (3600000000.0 /interval) / ppwh;
