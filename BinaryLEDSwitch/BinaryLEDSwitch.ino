@@ -1,4 +1,6 @@
 /**
+Repository:		https://github.com/tmandel123/MySensors
+
 ToDo in FHEM
 
 attr MYSENSOR_110 setCommands on:status_Switch:on off:status_Switch:off
@@ -26,6 +28,46 @@ I counld not find any method to do that. I tried sleep_disable() but this seems 
 I use Mysensors 2.3.1 on an arduino nano.
 
 
+wakeup with smartsleep=false
+
+24729 MCO:SLP:WUP=-1
+24731 TSF:TRI:TSB
+wakeup reason: -1
+going to sleep
+24737 MCO:SLP:MS=13333,SMS=0,I1=1,M1=2,I2=255,M2=255
+24744 TSF:TDI:TSL
+
+wakeup with smartsleep=true
+
+4617 MCO:SLP:WUP=-1
+4619 TSF:TRI:TSB
+4627 TSF:MSG:SEND,110-110-0-0,s=255,c=3,t=33,pt=5,l=4,sg=0,ft=0,st=OK:13333
+wakeup reason: -1
+going to sleep
+4634 MCO:SLP:MS=13333,SMS=1,I1=1,M1=2,I2=255,M2=255
+4643 TSF:MSG:SEND,110-110-0-0,s=255,c=3,t=32,pt=5,l=4,sg=0,ft=0,st=OK:555
+5206 TSF:TDI:TSL
+
+wakeup with smartsleep=true and receiving new value
+
+7737 MCO:SLP:WUP=-1
+7739 TSF:TRI:TSB
+7747 TSF:MSG:SEND,110-110-0-0,s=255,c=3,t=33,pt=5,l=4,sg=0,ft=0,st=OK:12292
+wakeup reason: -1
+going to sleep
+7754 MCO:SLP:MS=13333,SMS=1,I1=1,M1=2,I2=255,M2=255
+7763 TSF:MSG:SEND,110-110-0-0,s=255,c=3,t=32,pt=5,l=4,sg=0,ft=0,st=OK:555
+7800 TSF:MSG:READ,0-0-110,s=51,c=1,t=2,pt=0,l=1,sg=0:1
+receive: 1
+8326 TSF:TDI:TSL
+
+wakeup and process new value
+
+8327 MCO:SLP:WUP=-1
+8329 TSF:TRI:TSB
+8337 TSF:MSG:SEND,110-110-0-0,s=255,c=3,t=33,pt=5,l=4,sg=0,ft=0,st=OK:13333
+wakeup reason: -1
+8346 TSF:MSG:SEND,110-110-0-0,s=51,c=1,t=2,pt=1,l=1,sg=0,ft=0,st=OK:1
 
 
 **/
@@ -34,7 +76,7 @@ I use Mysensors 2.3.1 on an arduino nano.
 //	###################   Debugging   #####################
 #define MY_DEBUG
 #define SER_DEBUG
-// #define MY_DEBUG_VERBOSE_RF24								//Testen, welche zusätzlichen Infos angezeigt werden
+// #define MY_DEBUG_VERBOSE_RF24
 // #define MY_SPLASH_SCREEN_DISABLED
 // #define MY_SIGNAL_REPORT_ENABLED
 
@@ -67,7 +109,7 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 #define MY_TRANSPORT_SANITY_CHECK
 
 #define MY_NODE_ID 							110
-// #define MY_PARENT_NODE_ID 					100		//without this the node broadcasts everything to parent 255 (dont know what happens, if 2 repeater receive this at the same time)
+// #define MY_PARENT_NODE_ID 					100		//without this passive node broadcasts everything to parent 255 (dont know what happens, if 2 repeater receive this at the same time)
 // #define MY_PARENT_NODE_IS_STATIC
 // #define MY_PASSIVE_NODE
 
@@ -76,40 +118,33 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 #define SKETCH_VER            				"1.0-002"        			// Sketch version
 #define SKETCH_NAME           				"LEDSwitch"   		// Optional child sensor name
 
-#define HEARTBEAT_INTERVAL        			300000        //später alle 5 Minuten, zum Test alle 30 Sekunden
-#define SLEEP_TIME							8888
-#define MY_SMART_SLEEP_WAIT_DURATION_MS		(1234ul)
+#define SLEEP_TIME							13333
+#define MY_SMART_SLEEP_WAIT_DURATION_MS		(555ul)
 #define	TOGGLE_BUTTON						3
-// #define	WITH_BATTERY
 
 #include <MySensors.h>
-// #include <OneButton.h>					// http://www.mathertel.de/Arduino/OneButtonLibrary.aspx Version 1.3
 #include "C:\_Lokale_Daten_ungesichert\Arduino\MySensors\CommonFunctions.h" //muss nach allen anderen #defines stehen
-
-
-// OneButton button1(TOGGLE_BUTTON,1,true); //Pin, 1=button connected to Ground, true = INPUT_PULLUP
-
-
 
 
 #define MAX_LED_LEVEL						1
 #define LED_LEVEL_EEPROM					0
 #define	BLINK_DELAY							180
 
-
-volatile uint8_t currentLevel = 0;  // Current dim level...
-uint32_t lastHeartBeat = HEARTBEAT_INTERVAL - 10000; //das erste Mal sollte nach 5 Sekunden etwas passieren
-uint32_t oldPulseCount = 0;
-volatile uint32_t pulseCount = 0;
+bool justReceived = false;
+uint8_t	lastLevel = 0;
+uint32_t lastIRQCounter = 999;				//for first loop it must be different from IRQCounter
+volatile uint8_t currentLevel = 0; 			// Current LED level 0 or 1
 volatile uint32_t lastPulseTime = 0;
+volatile uint32_t IRQCounter = 0;
+
 
 
 void preHwInit() 
 {
 	DEBUG_SERIAL(MY_BAUD_RATE);
-	pinMode(LED_DIGITAL_PIN, OUTPUT);   // sets the pin as output
+	pinMode(LED_PWM_PIN, OUTPUT);   // sets the pin as output
 	pinMode(TOGGLE_BUTTON, INPUT_PULLUP);   // sets the pin as output
-	// Blink();
+	Blink();
 	DEBUG_PRINTLN("preHwInit done");
 
 }
@@ -117,9 +152,8 @@ void preHwInit()
 void before() 
 {
 	DEBUG_PRINTLN("before");
-	// Blink();
+	Blink();
 	
-	// showEEprom();
 	currentLevel = loadState(LED_LEVEL_EEPROM);
 	
 	if (currentLevel>MAX_LED_LEVEL)
@@ -131,21 +165,16 @@ void before()
 	DEBUG_PRINT("EEPROMLevel: ");
 	DEBUG_PRINTLN(currentLevel);
 	DEBUG_PRINTLN(F("restore last LED level"));
-	digitalWrite( LED_DIGITAL_PIN, currentLevel );
-	
+	digitalWrite( LED_PWM_PIN, currentLevel );
 }
-
 
 
 void setup()
 {
 	DEBUG_PRINTLN("Setup");
-	// Blink();
+	Blink();
 	send( msgSwitchState.set(currentLevel) );
-	// button1.attachClick(click1);
-	// button1.setDebounceTicks(DEBOUNCE_TICKS);	//defined in CommonFunctions.h
-	// button1.setClickTicks(CLICK_TICKS);			//defined in CommonFunctions.h
-	// attachInterrupt(digitalPinToInterrupt(TOGGLE_BUTTON), onPulse, FALLING );
+	attachInterrupt(digitalPinToInterrupt(TOGGLE_BUTTON), ToggleWhileButtonPressed, FALLING );
 }
 
 void presentation()
@@ -153,51 +182,47 @@ void presentation()
 	mySendSketchInfo();
 	myPresentation();
 	present(CHILD_SINGLE_LED_SWITCH, 	S_BINARY, 		CHILD_SINGLE_LED_SWITCH_TEXT);
-	// present(CHILD_MULTI_BUTTON, 		S_INFO, 		CHILD_MULTI_BUTTON_TEXT);
-	wait(100);
 	myHeartBeatLoop();
 }
 
 
 void loop()
 {
-	uint32_t currentTime = millis();
-	// button1.tick();
-	if ((currentTime - lastHeartBeat > (uint32_t)HEARTBEAT_INTERVAL) and (currentLevel == 1))
+	if (justReceived)//
 	{
-		DEBUG_PRINTLN("HEARTBEAT_INTERVAL");
-		sendHeartbeat();
-		myHeartBeatLoop();
-		lastHeartBeat = currentTime;
-		send( msgSwitchState.set(currentLevel > 0) );
+		DEBUG_PRINTLN("justReceived activate Interrupt");
+		attachInterrupt(digitalPinToInterrupt(TOGGLE_BUTTON), ToggleWhileButtonPressed, FALLING );
 	}
 	
-
+	if (lastIRQCounter != IRQCounter) 
+	{
+		DEBUG_PRINT("IRQCounter: ");
+		DEBUG_PRINTLN(IRQCounter);
+		lastIRQCounter = IRQCounter;
+	}
+	
+	if (lastLevel != currentLevel) 
+	{
+		lastLevel = currentLevel;
+		setLED(currentLevel);
+		send( msgSwitchState.set(currentLevel) );
+	}
 	
 	if (currentLevel == 0)
 	{
-		// sendHeartbeat();
-		// myHeartBeatLoop();
-		
 		detachInterrupt(digitalPinToInterrupt(TOGGLE_BUTTON));
 		DEBUG_PRINTLN("going to sleep");
-		int8_t wakeupReason = smartSleep(digitalPinToInterrupt(TOGGLE_BUTTON), FALLING , SLEEP_TIME);
-		if (wakeupReason == digitalPinToInterrupt(TOGGLE_BUTTON))
-		{
-			pulseCount++;
-			attachInterrupt(digitalPinToInterrupt(TOGGLE_BUTTON), onPulse, FALLING );
-		}
+		int8_t wakeupReason = sleep(digitalPinToInterrupt(TOGGLE_BUTTON), FALLING , SLEEP_TIME, true);
 		DEBUG_PRINT("wakeup reason: ");
 		DEBUG_PRINTLN(wakeupReason);
+		if (wakeupReason == digitalPinToInterrupt(TOGGLE_BUTTON))
+		{
+			currentLevel = 1;
+			attachInterrupt(digitalPinToInterrupt(TOGGLE_BUTTON), ToggleWhileButtonPressed, FALLING );
+			DEBUG_PRINTLN("LED on after wake by ButtonIRQ");
+		}
 
 	}
-
-	if (pulseCount != oldPulseCount) 
-	{
-		oldPulseCount = pulseCount;
-		toggleLED();
-	}
-	// printLevel();
 }
 
 
@@ -205,11 +230,9 @@ void loop()
 void receive(const MyMessage &message)
 {
 	DEBUG_PRINT( "receive: " );
-	// DEBUG_PRINTLN( String(message.data) );	
 	DEBUG_PRINTLN( message.getByte() );	
 	if (message.type == V_STATUS) 
 	{
-		// uint8_t requestedLevel = atoi( message.data );
 		uint8_t requestedLevel = message.getByte();
 		if (requestedLevel == 0)
 		{
@@ -226,22 +249,30 @@ void setLED(uint8_t newLevel)
 {
 	if (newLevel == 0)
 	{
-		analogWrite(LED_DIGITAL_PIN,0);
+		analogWrite(LED_PWM_PIN,0);
 	}
 	else
 	{
-		analogWrite(LED_DIGITAL_PIN,newLevel<<3);
+		analogWrite(LED_PWM_PIN,newLevel<<3);
 	}
 }
 
-void printLevel()
+
+
+void Blink()
 {
-	DEBUG_PRINT(F("printLevel currentLevel: "));
-	DEBUG_PRINTLN(currentLevel);
+	DEBUG_PRINTLN(F("digitalWrite Blink"));
+	analogWrite( LED_PWM_PIN, 8 );
+	wait(BLINK_DELAY); 
+	analogWrite( LED_PWM_PIN, 0 );
+	wait(BLINK_DELAY);
+	analogWrite( LED_PWM_PIN, currentLevel << 3 );
 }
 
-void toggleLED()
+void ToggleWhileButtonPressed()
 {
+	IRQCounter++;
+
 	if (currentLevel == 0)
 	{
 		currentLevel=1;
@@ -250,63 +281,6 @@ void toggleLED()
 	{
 		currentLevel=0;
 	}
-	DEBUG_PRINTLN(F("toggleLED and saveState"));
-	// digitalWrite(LED_DIGITAL_PIN, currentLevel );
-	setLED(currentLevel);
-	// saveState(LED_LEVEL_EEPROM,	currentLevel);
-	send(msgSwitchState.set(currentLevel));
+	DEBUG_PRINT("ToggleWhileButtonPressed currentLevel: ");
+	DEBUG_PRINTLN(currentLevel);
 }
-
-void Blink()
-{
-	DEBUG_PRINTLN(F("digitalWrite Blink"));
-	digitalWrite( LED_DIGITAL_PIN, 1 );
-	wait(BLINK_DELAY); 
-	digitalWrite( LED_DIGITAL_PIN, 0 );
-	wait(BLINK_DELAY);
-	digitalWrite( LED_DIGITAL_PIN, currentLevel );
-}
-
-void onPulse()
-{
-	uint32_t newPulseTime = millis();
-	uint32_t interval = newPulseTime-lastPulseTime;
-	DEBUG_PRINT("onPulse interval:");
-	DEBUG_PRINTLN(interval);
-	// if (interval<10000L) { // Sometimes we get interrupt on RISING
-	if (interval<(uint32_t)50) { // Sometimes we get interrupt on RISING
-		DEBUG_PRINTLN("return OnPulse");
-		return;
-	}
-
-	lastPulseTime = newPulseTime;
-	pulseCount++;
-	DEBUG_PRINT("onPulse:");
-	DEBUG_PRINTLN(pulseCount);
-}
-
-// void onPulse()
-// {
-	// uint8_t ButtonState = digitalRead(TOGGLE_BUTTON);
-	// DEBUG_PRINT("onPulse ButtonState: ");
-	// DEBUG_PRINTLN(ButtonState);
-	// if (ButtonState == 0)
-	// {
-		// Blink();
-		// if (currentLevel == 0)
-		// {
-			// currentLevel=1;
-		// }
-		// else
-		// {
-			// currentLevel=0;
-		// }
-
-		// digitalWrite(LED_DIGITAL_PIN, currentLevel );
-		// saveState(LED_LEVEL_EEPROM,	currentLevel);
-		// DEBUG_PRINTLN(F("button click and toggle"));
-		// send(msgSwitchState.set(currentLevel > 0));
-	// }
-	// DEBUG_PRINTLN("onPulse Ende");
-// }
-
