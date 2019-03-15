@@ -27,9 +27,14 @@
 #define	MIN_ASCII_CHAR						32
 #define MAX_ASCII_CHAR						128
 
+#define DEBOUNCE_TICKS						15
+#define CLICK_TICKS							250
+
+#define PRIMARY_BUTTON_PIN					2
+#define SECONDARY_BUTTON_PIN				3
 #define DIGITAL_INPUT_SENSOR				3					// EnergyMeterPulseSensor, 
 #define LED_PWM_PIN							5
-#define LED_DIGITAL_PIN						3
+#define LED_DIGITAL_PIN						5
 #define PULSE_LED							8
 
 #define CHILD_OW_TEMP						10
