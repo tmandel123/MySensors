@@ -71,13 +71,12 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 // #define MY_CORE_ONLY						// does not call preHwInit() and before(), IRQ seems not to work
 
 // ###################   Node Spezifisch   #####################
-#define SKETCH_VER            				"1.0-003"        			// Sketch version
+#define SKETCH_VER            				"1.0-004"        			// Sketch version
 #define SKETCH_NAME           				"LEDSwitch"   		// Optional child sensor name
 
-#define SLEEP_TIME							30000
+#define SLEEP_TIME							300000
 #define MY_SMART_SLEEP_WAIT_DURATION_MS		(1000ul)
 #define	TOGGLE_BUTTON						3
-
 
 
 
@@ -92,16 +91,11 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 
 const int debounceTime = 15;  // debounce in milliseconds
 bool justReceived = false;
-bool IrqIsOn = false;
 uint8_t	lastLevel = 0;
 uint8_t	heartBeatCounter = 0;
-// uint32_t lastIRQCounter = 999;				//for first loop it must be different from IRQCounter
 uint32_t lastButtonPressed = 0;
 uint32_t lastHeartBeat = 0;
 volatile uint8_t currentLevel = 1; 			// Current LED level 0 or 1
-volatile uint32_t lastPulseTime = 0;
-// volatile uint32_t IRQCounter = 0;
-
 
 
 void preHwInit() 
@@ -157,14 +151,7 @@ void loop()
 		setIrqOn();
 		justReceived = false;
 	}
-	
-	// if (lastIRQCounter != IRQCounter) 
-	// {
-		// DEBUG_PRINT("IRQCounter: ");
-		// DEBUG_PRINTLN(IRQCounter);
-		// lastIRQCounter = IRQCounter;
-	// }
-	
+
 	if (lastLevel != currentLevel) 
 	{
 		deBounce();//wait for button to be released
@@ -180,7 +167,6 @@ void loop()
 		if (wakeupReason == digitalPinToInterrupt(TOGGLE_BUTTON))
 		{
 			currentLevel = 1;
-			// IRQCounter++;
 			deBounce();//wait for button to be released
 			lastButtonPressed=millis();
 			DEBUG_PRINTLN("LED on after wake by ButtonIRQ");
@@ -199,14 +185,13 @@ void loop()
 			sendHeartbeat();
 		}
 	}
-	if (heartBeatCounter > 10)//to flush retained messaged
+	if (heartBeatCounter > 3)//sendHeartbeat to flush retained messaged
 	{
 		sendHeartbeat(); 
 		heartBeatCounter = 0;
 		send( msgSwitchState.set(currentLevel) );
 	}
 }
-
 
 
 void receive(const MyMessage &message)
@@ -231,7 +216,6 @@ void receive(const MyMessage &message)
 void setIrqOn()
 {
 	DEBUG_PRINTLN("setIrqOn");
-	IrqIsOn = true;
 	noInterrupts();
 	clearPendingInterrupt(digitalPinToInterrupt(TOGGLE_BUTTON)); //MySensors Funktion
 	attachInterrupt(digitalPinToInterrupt(TOGGLE_BUTTON), ToggleWhileButtonPressed, FALLING );
@@ -241,7 +225,6 @@ void setIrqOn()
 void setIrqOff()
 {
 	DEBUG_PRINTLN("setIrqOff");
-	IrqIsOn = false;
 	noInterrupts();
 	detachInterrupt(digitalPinToInterrupt(TOGGLE_BUTTON));
 	clearPendingInterrupt(digitalPinToInterrupt(TOGGLE_BUTTON)); //MySensors Funktion	
@@ -265,7 +248,7 @@ void setLED(uint8_t newLevel)
 }
 
 
-void deBounce() 
+void deBounce() // inspired by https://gammon.com.au/interrupts
 {
 	uint32_t now = millis ();
 	do
@@ -292,7 +275,6 @@ void Blink()
 
 void ToggleWhileButtonPressed()
 {
-	// IRQCounter++; //for debugging
 	DEBUG_PRINT("TB");
 	uint32_t now=millis();
 	if ((now - lastButtonPressed) < 150)
