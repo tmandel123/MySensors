@@ -31,13 +31,13 @@ ToDo in OneButton.h (to remove segmentation fault error in Arduino 1.8.8)
 
 //	###################   Debugging   #####################
 // #define MY_DEBUG
-// #define SER_DEBUG
-// #define MY_DEBUG_VERBOSE_RF24
+#define SER_DEBUG
+#define MY_DEBUG_VERBOSE_CORE
 #define MY_SPLASH_SCREEN_DISABLED
 // #define MY_SIGNAL_REPORT_ENABLED
 
 //	###################   Features   #####################
-// #define MY_REPEATER_FEATURE
+#define MY_REPEATER_FEATURE
 // #define MY_GATEWAY_SERIAL
 // #define MY_INCLUSION_MODE_FEATURE
 // #define MY_INCLUSION_BUTTON_FEATURE
@@ -58,27 +58,33 @@ RF24_PA_HIGH = 	-6dBm 		2	R_TX_Powerlevel_Pct
 RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 */
 
-#define MY_RF24_PA_LEVEL 					RF24_PA_LOW
+#define MY_RF24_PA_LEVEL 					RF24_PA_HIGH
 #define MY_RADIO_RF24
 #define MY_RF24_CHANNEL 					96
-#define MY_TRANSPORT_WAIT_READY_MS 			(5000ul)
+// #define MY_TRANSPORT_WAIT_READY_MS 			(8000ul)
 #define MY_TRANSPORT_SANITY_CHECK
 
-#define MY_NODE_ID 							110
+#define MY_NODE_ID 							111
 // #define MY_PARENT_NODE_ID 					100		//without this passive node broadcasts everything to parent 255 (dont know what happens if 2 repeater receive this at the same time)
 // #define MY_PARENT_NODE_IS_STATIC
 // #define MY_PASSIVE_NODE
 // #define MY_CORE_ONLY						// does not call preHwInit() and before(), IRQ seems not to work
 
 // ###################   Node Spezifisch   #####################
-#define SKETCH_VER            				"1.0-004"        			// Sketch version
+#define SKETCH_VER            				"1.0-005"        			// Sketch version
 #define SKETCH_NAME           				"LEDSwitch"   		// Optional child sensor name
 
-#define SLEEP_TIME							300000
+// #define WITH_BUTTON
+#define WITH_SLEEP
+
+
+#define SLEEP_TIME							30000
 #define MY_SMART_SLEEP_WAIT_DURATION_MS		(1000ul)
 #define	TOGGLE_BUTTON						3
 
-
+#ifdef MY_REPEATER_FEATURE 
+#undef WITH_SLEEP 
+#endif
 
 #include <MySensors.h>
 #include "C:\_Lokale_Daten_ungesichert\Arduino\MySensors\CommonFunctions.h" //muss nach allen anderen #defines stehen
@@ -87,10 +93,11 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 #define MAX_LED_LEVEL						1
 #define LED_LEVEL_EEPROM					0
 #define	BLINK_DELAY							50
-#define HEARTBEAT_INTERVAL					600000				//später alle 5 Minuten, zum Test alle 30 Sekunden
+#define HEARTBEAT_INTERVAL					300000				//später alle 5 Minuten, zum Test alle 30 Sekunden
 
 const int debounceTime = 15;  // debounce in milliseconds
 bool justReceived = false;
+bool firstRun = true;
 uint8_t	lastLevel = 0;
 uint8_t	heartBeatCounter = 0;
 uint32_t lastButtonPressed = 0;
@@ -102,7 +109,9 @@ void preHwInit()
 {
 	DEBUG_SERIAL(MY_BAUD_RATE);
 	pinMode(LED_PWM_PIN, OUTPUT);   // sets the pin as output Active High, LED+ on Port 5 LED- on GND
+	#ifdef WITH_BUTTON
 	pinMode(TOGGLE_BUTTON, INPUT_PULLUP);   // sets the pin as output
+	#endif
 	Blink();
 	DEBUG_PRINTLN("preHwInit done");
 
@@ -136,15 +145,20 @@ void setup()
 void presentation()
 {
 	mySendSketchInfo();
-	myPresentation();
 	present(CHILD_SINGLE_LED_SWITCH, 	S_BINARY, 		CHILD_SINGLE_LED_SWITCH_TEXT);
-	myHeartBeatLoop();
+	myPresentation();
 }
 
 
 void loop()
 {
 	uint32_t currentTime = millis();
+	if (firstRun)
+	{
+		myHeartBeatLoop();
+		firstRun=false;
+	}
+	
 	if (justReceived)//
 	{
 		DEBUG_PRINTLN("justReceived");
@@ -158,11 +172,12 @@ void loop()
 		lastLevel = currentLevel;
 		setLED(currentLevel);
 	}
-	
+	#ifdef WITH_SLEEP
 	if (currentLevel == 0)
 	{
 		DEBUG_PRINTLN("prepare to sleep");
 		setIrqOff();
+		#ifdef WITH_BUTTON
 		int8_t wakeupReason = sleep(digitalPinToInterrupt(TOGGLE_BUTTON), FALLING , SLEEP_TIME, true);
 		if (wakeupReason == digitalPinToInterrupt(TOGGLE_BUTTON))
 		{
@@ -172,25 +187,33 @@ void loop()
 			DEBUG_PRINTLN("LED on after wake by ButtonIRQ");
 			setIrqOn();
 		}
+		#else
+		sleep(SLEEP_TIME, true);			
+		#endif
+		
 		heartBeatCounter++;
 		DEBUG_PRINT("leaving sleep: heartBeatCounter ");
 		DEBUG_PRINTLN(heartBeatCounter);
 	}
 	else
+	#endif
 	{
 		uint32_t TimeSinceHeartBeat = currentTime - lastHeartBeat;
-		if (((TimeSinceHeartBeat > (uint32_t)HEARTBEAT_INTERVAL)))
+		if (TimeSinceHeartBeat > (uint32_t)HEARTBEAT_INTERVAL)
 		{
 			lastHeartBeat = currentTime;
 			sendHeartbeat();
+			myHeartBeatLoop();
 		}
 	}
+	#ifdef WITH_SLEEP
 	if (heartBeatCounter > 3)//sendHeartbeat to flush retained messaged
 	{
 		sendHeartbeat(); 
 		heartBeatCounter = 0;
 		send( msgSwitchState.set(currentLevel) );
 	}
+	#endif
 }
 
 
@@ -213,6 +236,33 @@ void receive(const MyMessage &message)
 	}
 }
 
+void setLED(uint8_t newLevel)
+{
+	DEBUG_PRINT( "setLED: " );
+	DEBUG_PRINTLN( newLevel );	
+	if (newLevel == 0)
+	{
+		digitalWrite(LED_PWM_PIN,0);
+	}
+	else
+	{
+		digitalWrite(LED_PWM_PIN,newLevel);
+	}
+	saveState(LED_LEVEL_EEPROM, newLevel);//8 Bit
+	send( msgSwitchState.set(newLevel) );
+}
+
+void Blink()
+{
+	DEBUG_PRINTLN(F("digitalWrite Blink"));
+	digitalWrite( LED_PWM_PIN, 1 );
+	wait(BLINK_DELAY); 
+	digitalWrite( LED_PWM_PIN, 0 );
+	wait(BLINK_DELAY*2);
+	digitalWrite( LED_PWM_PIN, currentLevel );
+}
+
+#ifdef WITH_BUTTON
 void setIrqOn()
 {
 	DEBUG_PRINTLN("setIrqOn");
@@ -231,22 +281,6 @@ void setIrqOff()
 	interrupts();
 }
 
-void setLED(uint8_t newLevel)
-{
-	DEBUG_PRINT( "setLED: " );
-	DEBUG_PRINTLN( newLevel );	
-	if (newLevel == 0)
-	{
-		digitalWrite(LED_PWM_PIN,0);
-	}
-	else
-	{
-		digitalWrite(LED_PWM_PIN,newLevel);
-	}
-	saveState(LED_LEVEL_EEPROM, newLevel);//8 Bit
-	send( msgSwitchState.set(newLevel) );
-}
-
 
 void deBounce() // inspired by https://gammon.com.au/interrupts
 {
@@ -263,15 +297,6 @@ void deBounce() // inspired by https://gammon.com.au/interrupts
 
 }
 
-void Blink()
-{
-	DEBUG_PRINTLN(F("digitalWrite Blink"));
-	digitalWrite( LED_PWM_PIN, 1 );
-	wait(BLINK_DELAY); 
-	digitalWrite( LED_PWM_PIN, 0 );
-	wait(BLINK_DELAY*2);
-	digitalWrite( LED_PWM_PIN, currentLevel );
-}
 
 void ToggleWhileButtonPressed()
 {
@@ -295,3 +320,10 @@ void ToggleWhileButtonPressed()
 	}
 
 }
+
+#else
+void setIrqOn(){};
+void setIrqOff(){};
+void deBounce(){};
+void ToggleWhileButtonPressed(){};
+#endif
