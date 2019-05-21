@@ -33,14 +33,16 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 // #define MY_TRANSPORT_WAIT_READY_MS 			(5000ul)
 #define MY_TRANSPORT_SANITY_CHECK
 
-#define MY_NODE_ID 							150
+// #define MY_NODE_ID 							150
+// #define MY_NODE_ID 							180		//Test
+#define MY_NODE_ID 							181			//Teichwasser Batterie Sensor
 // #define MY_PARENT_NODE_ID 					51		//without this the node broadcasts everything to parent 255 (dont know what happens, if 2 repeater receive this at the same time)
 // #define MY_PARENT_NODE_IS_STATIC
-// #define MY_PASSIVE_NODE
+#define MY_PASSIVE_NODE
 
 
 // ###################   Node Spezifisch   #####################
-#define SKETCH_VER            				"1.7-005"        			// Sketch version
+#define SKETCH_VER            				"1.7-006"        			// Sketch version
 #define SKETCH_NAME           				"OneWireMaster"   		// Optional child sensor name
 
 // #define HEARTBEAT_INTERVAL        			600000        //später alle 5 Minuten, zum Test alle 30 Sekunden
@@ -68,7 +70,7 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 
 
 
-// #define	WITH_BATTERY
+#define	WITH_BATTERY
 
 #include <MySensors.h>
 #include <DallasTemperature.h>	// https://github.com/milesburton/Arduino-Temperature-Control-Library Version 3.8.0
@@ -202,7 +204,7 @@ void loop()
 			}
 			float temperature = sensors.getTempC(tempDeviceAddress);
 			// debugMessage("loop: gotTempC: ",String(temperature,DEC));
-			if (temperature != -127.00 && temperature != 85.00) 
+			if (temperature < -50.00 || temperature > 80.00) 
 			{
 				send(msgOwTemp.setSensor(CHILD_OW_TEMP+i).setType(V_TEMP).set(temperature,1));//Temp mit einer Nachkommastelle senden
 				send(msgOwTemp.setSensor(CHILD_OW_TEMP+i).setType(V_ID).set(tempDeviceAddress,8));//Temp mit einer Nachkommastelle senden
