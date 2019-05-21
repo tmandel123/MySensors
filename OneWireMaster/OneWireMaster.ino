@@ -42,7 +42,7 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 
 
 // ###################   Node Spezifisch   #####################
-#define SKETCH_VER            				"1.7-006"        			// Sketch version
+#define SKETCH_VER            				"1.7-007"        			// Sketch version
 #define SKETCH_NAME           				"OneWireMaster"   		// Optional child sensor name
 
 // #define HEARTBEAT_INTERVAL        			600000        //später alle 5 Minuten, zum Test alle 30 Sekunden
@@ -210,6 +210,10 @@ void loop()
 				send(msgOwTemp.setSensor(CHILD_OW_TEMP+i).setType(V_ID).set(tempDeviceAddress,8));//Temp mit einer Nachkommastelle senden
 				LoadName(i);//Load from EEPROM to volatile char cThermoName
 				send(msgOwName.setSensor(CHILD_OW_TEMP_NAME+i).set(cThermoName));
+			}
+			else
+			{
+				send(msgDebugReturnString.set(F("Wrong Temperature < -50 our > 80")));	
 			}
 		}
 	}
