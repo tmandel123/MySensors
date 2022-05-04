@@ -1,3 +1,12 @@
+// #define STR_HELPER(x)						x						//# vor x bedeutet, dass Hochkommata um den String herum platziert werden
+// #define COMPILE_STRING 						STR_HELPER(__TIME__ __DATE__)
+
+// #define	DATESTRING								__DATE__
+// #define	TIMESTRING								__TIME__
+// #define COMPILE_STRING 							GLUE(DATESTRING,TIMESTRING)
+
+
+
 #ifdef SER_DEBUG
 #define DEBUG_SERIAL(x) Serial.begin(x)
 #define DEBUG_PRINT(x) Serial.print(x)
@@ -7,6 +16,11 @@
 #define DEBUG_PRINT(x) 
 #define DEBUG_PRINTLN(x) 
 #endif
+
+
+
+
+
 
 #define REQUEST_ACK							true
 
@@ -35,7 +49,7 @@
 #define DIGITAL_INPUT_SENSOR				3					// EnergyMeterPulseSensor, 
 #define LED_PWM_PIN							5
 #define LED_DIGITAL_PIN						5
-#define PULSE_LED							8
+#define PULSE_LED							13					//war vor 19.1.2022 8
 
 #define CHILD_OW_TEMP						10
 #define	CHILD_OW_TEMP_TEXT					("OW_Temp")			//flashhelper is not working with functions in OneWireMaster.ino
@@ -73,6 +87,12 @@
 #define CHILD_PARENT_NODE					81
 #define	CHILD_PARENT_NODE_TEXT				(F("ParentNode"))
 
+#define CHILD_CPU_TEMPERATURE				88
+#define	CHILD_CPU_TEMPERATURE_TEXT			(F("CpuTemp"))
+
+#define CHILD_COMPILEDATE_NODE				89
+#define	CHILD_COMPILEDATE_NODE_TEXT			(F("CompileDate"))
+
 #define CHILD_HWTIME						90
 #define	CHILD_HWTIME_TEXT					(F("HwTime"))
 #define CHILD_TX_RSSI						91
@@ -95,6 +115,7 @@
 #define CHILD_BAT_VREF_TEXT 				(F("Bat"))
 
 #include <VoltageReference.h>				// https://github.com/rlogiacco/VoltageReference Version 1.2.2
+// #include "C:\_Lokale_Daten_ungesichert\Arduino\libraries\Voltage_Reference\VoltageReference.h"				// https://github.com/rlogiacco/VoltageReference Version 1.2.2
 
 MyMessage msgOwTemp							(CHILD_OW_TEMP,  				V_TEMP);			//10-17
 MyMessage msgDebugOWConList					(CHILD_OW_CONNECTED,			V_TEXT);			//18
@@ -117,6 +138,9 @@ MyMessage msgNewMeterValue					(CHILD_NEW_METER_VALUE,			V_TEXT);			//71
 
 MyMessage msgPassiveNode					(CHILD_PASSIVE_NODE, 			V_TEXT);			//80
 MyMessage msgParentNode						(CHILD_PARENT_NODE, 			V_TEXT);			//81
+
+MyMessage msgCpuTemp						(CHILD_CPU_TEMPERATURE, 		V_TEXT);			//88
+MyMessage msgCompileDate					(CHILD_COMPILEDATE_NODE, 		V_TEXT);			//89
 
 MyMessage msgHwTime							(CHILD_HWTIME, 					V_TEXT);
 MyMessage msgSendingRSSI					(CHILD_TX_RSSI, 				V_TEXT);
@@ -141,33 +165,51 @@ void myPresentation()
 {
 	DEBUG_PRINTLN(F("myPresentation"));
 	
-	// present(CHILD_OW_CONNECTED, 		S_INFO, 			CHILD_OW_CONNECTED_TEXT);//OneWireMaster only
-	// present(CHILD_OW_DEV_COUNT, 		S_INFO, 			CHILD_OW_DEV_COUNT_TEXT);//OneWireMaster only
 	present(CHILD_PASSIVE_NODE, 		S_INFO,				CHILD_PASSIVE_NODE_TEXT);
 	present(CHILD_PARENT_NODE, 			S_INFO,				CHILD_PARENT_NODE_TEXT);
-	#if !defined WITH_BATTERY
-		present(CHILD_HWTIME, 				S_INFO, 			CHILD_HWTIME_TEXT);
-	#endif
+	present(CHILD_COMPILEDATE_NODE, 	S_INFO,				CHILD_COMPILEDATE_NODE_TEXT);
+	present(CHILD_CPU_TEMPERATURE, 		S_INFO,				CHILD_CPU_TEMPERATURE_TEXT);
 	present(CHILD_TX_RSSI, 				S_INFO, 			CHILD_TX_RSSI_TEXT);
 	present(CHILD_RF24_PA_LEVEL, 		S_INFO, 			CHILD_RF24_PA_LEVEL_TEXT);
 	present(CHILD_RF24_CHANNEL, 		S_INFO,				CHILD_RF24_CHANNEL_TEXT);
-	#ifdef MY_ECHO_NODE
-		present(CHILD_ECHO_TIMESTAMP, 		S_INFO,				CHILD_ECHO_TIMESTAMP_TEXT);
-		present(CHILD_ECHO_RUNTIME, 		S_INFO,				CHILD_ECHO_RUNTIME_TEXT);
-		present(CHILD_PACKET_RATIO, 		S_INFO,				CHILD_PACKET_RATIO_TEXT);
-	#endif
 	present(CHILD_DEBUG_LEVEL,	 		S_INFO,				CHILD_DEBUG_LEVEL_TEXT);
-	#if MY_NODE_ID > 99 && MY_NODE_ID < 110
-		present(CHILD_NEW_METER_VALUE,		S_INFO,				CHILD_NEW_METER_VALUE_TEXT);
-	#endif
-
 	present(CHILD_DEBUG_RETURN, 		S_INFO,				CHILD_DEBUG_RETURN_TEXT);
 
-	#ifdef WITH_BATTERY
-		present(CHILD_BAT_VREF,		 		S_MULTIMETER,		CHILD_BAT_VREF_TEXT);
-	#endif
+	
+#if MY_NODE_ID > 150 && MY_NODE_ID < 200
+	present(CHILD_OW_CONNECTED, 		S_INFO, 			CHILD_OW_CONNECTED_TEXT);		//OneWireMaster only
+	present(CHILD_OW_DEV_COUNT, 		S_INFO, 			CHILD_OW_DEV_COUNT_TEXT);		//OneWireMaster only
+#endif
+
+#if !defined WITH_BATTERY
+	present(CHILD_HWTIME, 				S_INFO, 			CHILD_HWTIME_TEXT);
+#endif
+
+#ifdef MY_ECHO_NODE
+	present(CHILD_ECHO_TIMESTAMP, 		S_INFO,				CHILD_ECHO_TIMESTAMP_TEXT);
+	present(CHILD_ECHO_RUNTIME, 		S_INFO,				CHILD_ECHO_RUNTIME_TEXT);
+	present(CHILD_PACKET_RATIO, 		S_INFO,				CHILD_PACKET_RATIO_TEXT);
+#endif
+
+#if MY_NODE_ID > 99 && MY_NODE_ID < 110
+	present(CHILD_NEW_METER_VALUE,		S_INFO,				CHILD_NEW_METER_VALUE_TEXT);	//Strom, Gas und Wasserzähler
+#endif
+
+#ifdef WITH_BATTERY
+	present(CHILD_BAT_VREF,		 		S_MULTIMETER,		CHILD_BAT_VREF_TEXT);
+#endif
 	
 }
+
+
+//ToDo: 
+/**
+int8_t hwCPUTemperature(void)
+uint16_t hwFreeMem(void)
+uint16_t hwCPUFrequency(void)
+uint16_t hwCPUVoltage(void)
+uint8_t getParentNodeId(void)	//im FHEM Standard wird es als parentId in den Readings angezeigt
+**/
 
 void myHeartBeatLoop()
 {
@@ -189,108 +231,114 @@ void myHeartBeatLoop()
 	//CHILD_TX_RSSI
 	nowRSSI=RF24_getSendingRSSI();
 	avgRSSI=((avgRSSI*7)+(nowRSSI))/8;
-	// DEBUG_PRINT("avgRSSI: ");
-	// DEBUG_PRINTLN(avgRSSI);
 	send(msgSendingRSSI.set(avgRSSI));
 	send(msgPaLevel.set(PA_LEVEL_TEXT));
 	send(msgRFChannel.set(MY_RF24_CHANNEL));
+	
 	#ifdef MY_PASSIVE_NODE
 		send(msgPassiveNode.set(1));
 	#else
 		send(msgPassiveNode.set(0));
 	#endif
 	#if MY_PARENT_NODE_ID == (AUTO)
-		// #ifdef MY_PARENT_NODE_IS_STATIC
-			// send(msgParentNode.set("S" + MY_PARENT_NODE_ID));
-		// #else
 		send(msgParentNode.set("AUTO"));
-		// #endif
 	#else
 		send(msgParentNode.set("fixed"));
 	#endif	
+	
+	send(msgCompileDate.set(F(__DATE__ " " __TIME__)));				//FHEM: text_CompileDate	Jan 21 2022 16:03:17
+	send(msgCpuTemp.set(hwCPUTemperature()));			//FHEM: text_CpuTemp 		21
+
 
 
 }
 
-void getCompileDateTime(char const *date, char *buff) {
-    int month, day, year;
-    static const char month_names[] = "JanFebMarAprMayJunJulAugSepOctNovDec";
-    sscanf(date, "%s %d %d", buff, &day, &year);
-    month = (strstr(month_names, buff)-month_names)/3+1;
-    sprintf(buff, "%d%02d%02d", year, month, day);
-}
 
-void mySendInt8(MyMessage ThisMessage, uint8_t Integer)
-{
-	int myCounter=0;
-	bool sendStatus=false;
+
+// void mySendInt8(MyMessage ThisMessage, uint8_t Integer)//RemoteReceiverActuator.ino
+// {
+	// int myCounter=0;
+	// bool sendStatus=false;
 	// DEBUG_PRINT("mySend: ");
 	// DEBUG_PRINTLN(Integer);
 	// ThisMessage.setDestination(RECEIVER_NODE);
-	while ( !sendStatus and (myCounter < 5))
-	{
+	// while ( !sendStatus and (myCounter < 5))
+	// {
 		// ThisMessage.setDestination(RECEIVER_NODE);
-		sendStatus = send(ThisMessage.set(Integer), REQUEST_ACK);
+		// sendStatus = send(ThisMessage.set(Integer), REQUEST_ACK);
 		// DEBUG_PRINT("sendStatus >");
 		// DEBUG_PRINT(sendStatus);
 		// DEBUG_PRINT("< myCounter >");
 		// DEBUG_PRINT(myCounter);
 		// DEBUG_PRINTLN("<");
-		myCounter++;
-		wait(100*myCounter*2);
-	}
-}
+		// myCounter++;
+		// wait(100*myCounter*2);
+	// }
+// }
 
-void mySendString(MyMessage ThisMessage, const char *myString)
-{
-	int myCounter=0;
-	bool sendStatus=false;
+// void mySendString(MyMessage ThisMessage, const char *myString)
+// {
+	// int myCounter=0;
+	// bool sendStatus=false;
 	// DEBUG_PRINT("mySend: ");
 	// DEBUG_PRINTLN(myString);
 	// ThisMessage.setDestination(RECEIVER_NODE);
-	while ( !sendStatus and (myCounter < 5))
-	{
+	// while ( !sendStatus and (myCounter < 5))
+	// {
 		// ThisMessage.setDestination(RECEIVER_NODE);
-		sendStatus = send(ThisMessage.set(myString), REQUEST_ACK);
+		// sendStatus = send(ThisMessage.set(myString), REQUEST_ACK);
 		// DEBUG_PRINT("sendStatus >");
 		// DEBUG_PRINT(sendStatus);
 		// DEBUG_PRINT("< myCounter >");
 		// DEBUG_PRINT(myCounter);
 		// DEBUG_PRINTLN("<");
-		myCounter++;
-		wait(100*myCounter*2);
-	}
-}
+		// myCounter++;
+		// wait(100*myCounter*2);
+	// }
+// }
 
 void mySendSketchInfo()
 {
-	char CompileDate[8];
-	getCompileDateTime(__DATE__, CompileDate);
-	
-	char SendString[25] = ""; //mehr als 25 Zeichen werden nicht übertragen
-	uint8_t i=0;
-	for (uint8_t j=0;j<(sizeof(SKETCH_VER)-1);j++)
-	{
-		SendString[j]=SKETCH_VER[j];
-		i++;
-	}
-	SendString[i]=' ';
-	i++;
-	for (uint8_t j=0;j<(sizeof(CompileDate));j++)
-	{
-		SendString[i]=CompileDate[j];
-		i++;
-	}
-	SendString[i]=' ';
-	i++;
-
-	for (uint8_t j=0;j<5;j++)
-	{
-		SendString[i]=__TIME__[j];
-		i++;
-	}
-	sendSketchInfo(SKETCH_NAME, SendString );
+	sendSketchInfo(SKETCH_NAME, SKETCH_VER ); //SendString in FHEM: SKETCH_VERSION -->  1.5-007 20220119 16:24
 }
+
+// void getCompileDateTime(char const *date, char *buff) {
+    // int month, day, year;
+    // static const char month_names[] = "JanFebMarAprMayJunJulAugSepOctNovDec";
+    // sscanf(date, "%s %d %d", buff, &day, &year);
+    // month = (strstr(month_names, buff)-month_names)/3+1;
+    // sprintf(buff, "%d%02d%02d", year, month, day);
+// }
+
+// void mySendSketchInfo()
+// {
+	// char CompileDate[8];
+	// getCompileDateTime(__DATE__, CompileDate);
+	
+	// char SendString[25] = ""; //mehr als 25 Zeichen werden nicht übertragen
+	// uint8_t i=0;
+	// for (uint8_t j=0;j<(sizeof(SKETCH_VER)-1);j++)
+	// {
+		// SendString[j]=SKETCH_VER[j];
+		// i++;
+	// }
+	// SendString[i]=' ';
+	// i++;
+	// for (uint8_t j=0;j<(sizeof(CompileDate));j++)
+	// {
+		// SendString[i]=CompileDate[j];
+		// i++;
+	// }
+	// SendString[i]=' ';
+	// i++;
+
+	// for (uint8_t j=0;j<5;j++)
+	// {
+		// SendString[i]=__TIME__[j];
+		// i++;
+	// }
+	// sendSketchInfo(SKETCH_NAME, SendString ); //SendString in FHEM: SKETCH_VERSION -->  1.5-007 20220119 16:24
+// }
 
 // void PrintRF24Transport()
 // {
