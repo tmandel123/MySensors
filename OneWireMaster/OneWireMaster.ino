@@ -1,6 +1,6 @@
 //	###################   Debugging   #####################
 // #define MY_DEBUG
-#define SER_DEBUG
+// #define SER_DEBUG
 // #define MY_DEBUG_VERBOSE_RF24								//Testen, welche zusätzlichen Infos angezeigt werden
 // #define MY_SPLASH_SCREEN_DISABLED
 // #define MY_SIGNAL_REPORT_ENABLED
@@ -29,30 +29,34 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 
 #define MY_RF24_PA_LEVEL 					RF24_PA_LOW
 #define MY_RADIO_RF24
+// #define MY_RF24_CE_PIN 						10 				//nur für RF-Nano verwenden
+// #define MY_RF24_CS_PIN 						9				//nur für RF-Nano verwenden
+// #define MY_RF24_DATARATE 					RF24_1MBPS		//nur verwenden, wenn mindestens 1 RF-Nano im Netzwerk eingebucht werden soll
 #define MY_RF24_CHANNEL 					96
 // #define MY_TRANSPORT_WAIT_READY_MS 			(5000ul)
-#define MY_TRANSPORT_SANITY_CHECK
+//#define MY_TRANSPORT_SANITY_CHECK
 
 // #define MY_NODE_ID 							150
 // #define MY_NODE_ID 							180		//Test
-#define MY_NODE_ID 							181			//Teichwasser Batterie Sensor
-// #define MY_PARENT_NODE_ID 					51		//without this the node broadcasts everything to parent 255 (dont know what happens, if 2 repeater receive this at the same time)
+// #define MY_NODE_ID 							181			//Teichwasser Batterie Sensor
+#define MY_NODE_ID 							182			//Gartenhaus Temperatur Sensors
+#define MY_PARENT_NODE_ID 					50		//without this the node broadcasts everything to parent 255 (dont know what happens, if 2 repeater receive this at the same time)
 // #define MY_PARENT_NODE_IS_STATIC
 #define MY_PASSIVE_NODE
 
 
 // ###################   Node Spezifisch   #####################
-#define SKETCH_VER            				"1.7-007"        			// Sketch version
+#define SKETCH_VER            				"1.7-009"        			// Sketch version
 #define SKETCH_NAME           				"OneWireMaster"   		// Optional child sensor name
 
-// #define HEARTBEAT_INTERVAL        			600000        //später alle 5 Minuten, zum Test alle 30 Sekunden
+// #define HEARTBEAT_INTERVAL        			600000        //wird bei OneWireMaster nicht verwendet. Stattdessen wird in loop() als letztes wait SLEEP_TIME aufgerufen
 
 
 #define ONE_WIRE_BUS 4 // Pin where dallas sensor is connected 
 
-
 #define OW_RESOLUTION						12
-#define SLEEP_TIME							300000
+// #define SLEEP_TIME							600000
+#define SLEEP_TIME							10000
 #define MAX_ATTACHED_DS18B20      			8							//mehr als 8 funktioniert nicht mit den vorhandenen Methoden
 
 #define EEPROM_DEVICE_NAME_LENGTH   		8
@@ -70,7 +74,7 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 
 
 
-#define	WITH_BATTERY
+// #define	WITH_BATTERY						//DS18B20 Sensoren funktionieren nicht mit weniger als 2,5V, eigentlich müsste OneWireMaster mit 5V und Netzteil betriebern werden
 
 #include <MySensors.h>
 #include <DallasTemperature.h>	// https://github.com/milesburton/Arduino-Temperature-Control-Library Version 3.8.0
@@ -96,14 +100,15 @@ uint8_t DevLastCheckSum = 0;
 //	3	not implemented yet -> scanne nach aktuell angeschlossenen OwDevices und gebe für die restlichen den Speicher im EEPROM frei
 //	4 	clear all EEprom, switch back to debugLevel=0
 //	5	saveState(EEPROM_DEVICE_TEMP_ID_START, 65);// OwID an Index 1 erste Stelle ungültig machen
-//	9	Reboot
+//	9	Reboot /Arduino hängt sich auf, wenn default Bootloader installiert ist. Optiboot V8 von 2018 funktioniert (https://github.com/Optiboot/optiboot/releases/tag/v8.0)
 
+
+// void(* resetFunc) (void) = 0; //declare reset function @ address 0
 
 void preHwInit() 
 {
 	DEBUG_SERIAL(MY_BAUD_RATE);
-	// delay(20); // bei weniger als 18ms kommt soetwas hier: p⸮Y⸮%⸮⸮⸮⸮ 
-	// DEBUG_PRINTLN("preHwInit");
+	DEBUG_PRINTLN("preHwInit");
 }
 
 void before()
@@ -173,8 +178,8 @@ void presentation()
 
 void loop()
 {
-	sendHeartbeat();  
-	myHeartBeatLoop();
+	sendHeartbeat();  		//MySensors Funktion	
+	myHeartBeatLoop();		//Eigene Funktion aus CommonFunctions.h
 	sortOwAdresses();
 	
 	sensors.requestTemperatures();
@@ -203,17 +208,20 @@ void loop()
 				tempDeviceAddress[j]=loadState(EEPROM_DEVICE_TEMP_ID_START+(i*EEPROM_DEVICE_CNT_STEP)+j);
 			}
 			float temperature = sensors.getTempC(tempDeviceAddress);
-			// debugMessage("loop: gotTempC: ",String(temperature,DEC));
 			if (temperature < -50.00 || temperature > 80.00) 
 			{
-				send(msgOwTemp.setSensor(CHILD_OW_TEMP+i).setType(V_TEMP).set(temperature,1));//Temp mit einer Nachkommastelle senden
-				send(msgOwTemp.setSensor(CHILD_OW_TEMP+i).setType(V_ID).set(tempDeviceAddress,8));//Temp mit einer Nachkommastelle senden
-				LoadName(i);//Load from EEPROM to volatile char cThermoName
-				send(msgOwName.setSensor(CHILD_OW_TEMP_NAME+i).set(cThermoName));
+				DEBUG_PRINT("WrongTemp: ");
+				DEBUG_PRINTLN(temperature);
+				send(msgDebugReturnString.set(F("Wrong Temp < -50 our > 80")));  
 			}
 			else
 			{
-				send(msgDebugReturnString.set(F("Wrong Temperature < -50 our > 80")));	
+				DEBUG_PRINT("GoodTemp: ");
+				DEBUG_PRINTLN(temperature);
+				send(msgOwTemp.setSensor(CHILD_OW_TEMP+i).setType(V_TEMP).set(temperature,1));//Temp mit einer Nachkommastelle senden
+				send(msgOwTemp.setSensor(CHILD_OW_TEMP+i).setType(V_ID).set(tempDeviceAddress,8));
+				LoadName(i);//Load from EEPROM to volatile char cThermoName
+				send(msgOwName.setSensor(CHILD_OW_TEMP_NAME+i).set(cThermoName));
 			}
 		}
 	}
@@ -241,10 +249,9 @@ void checkResolution()//schreibt die Temperatur Auflösung ins EEPROM des DS18B2
 		{
 			for (uint8_t j=0;j<EEPROM_DEVICE_ID_LENGTH;j++)
 			{
+				// Call address of connected OW-Device from EEPROM instead of scanning OW-Bus
 				tempDeviceAddress[j]=loadState(EEPROM_DEVICE_TEMP_ID_START+(i*EEPROM_DEVICE_CNT_STEP)+j);
 			}
-			// String strAddr=DevAddressToHex(tempDeviceAddress);
-			// debugMessage("Checking Resolution for OwID: ",strAddr);
 			uint8_t resolution = sensors.getResolution(tempDeviceAddress);
 			if (resolution != OW_RESOLUTION) {
 				sensors.setResolution(tempDeviceAddress,OW_RESOLUTION,false);
@@ -252,11 +259,6 @@ void checkResolution()//schreibt die Temperatur Auflösung ins EEPROM des DS18B2
 				DEBUG_PRINTLN(String(OW_RESOLUTION,DEC));
 				wait(100);
 			}
-			else
-			{
-				// debugMessage("Resolution was OK: ",String(resolution,DEC));
-			}
-	
 		}	
 	}
 }
@@ -306,6 +308,7 @@ void sortOwAdresses()
 		else
 		{
 			DEBUG_PRINTLN("OneWire Bus ist ueberfuellt");
+			send(msgDebugReturnString.set(F("OneWire Bus ist ueberfuellt")));
 		}
 		thisDevCheckSum=thisDevCheckSum+tempDeviceAddress[1]+tempDeviceAddress[2]+Index;
 		// DEBUG_PRINT("thisDevCheckSum: ");
@@ -374,14 +377,14 @@ uint8_t getTempDevAddressIndex(DeviceAddress devAddress)
 			}
 		}
 		
-		if (counter == 8)//alle 8 Blöcke waren gliech
+		if (counter == 8)//alle 8 Blöcke waren gleich
 		{
 
 			return IndexCnt;
 		}
 		IndexCnt++;
 	}
-	return IndexCnt;//counter ist 1 größer als MAX_ATTACHED_DS18B20 und damit wird signalisiert, dass kein Speicher mehr frei ist. 
+	return IndexCnt;//counter ist 1 größer als MAX_ATTACHED_DS18B20 und damit wird signalisiert, dass kein Speicher mehr frei ist. ToDo: evtl. wird auch signalisiert, dass das neue OW-Device noch nicht abgespeichert wurde
 }
 
 
@@ -406,7 +409,7 @@ void ClearEeprom()
 	// debugMessage("ClearEeprom", "");
 	send(msgDebugReturnString.set(F("EEPROM cleared")));
 	// for (uint8_t i = EEPROM_DEVICE_TEMP_ID_START; i < EEPROM_DEVICE_TEMP_ID_START+MAX_ATTACHED_DS18B20*EEPROM_DEVICE_CNT_STEP; i++)
-	for (uint8_t i = 3; i < EEPROM_DEVICE_TEMP_ID_START+MAX_ATTACHED_DS18B20*EEPROM_DEVICE_CNT_STEP; i++)
+	for (uint8_t i = EEPROM_DEVICE_TEMP_NAME_START; i < EEPROM_DEVICE_TEMP_ID_START+MAX_ATTACHED_DS18B20*EEPROM_DEVICE_CNT_STEP; i++)
 	{
 		Serial.print("Clearing Pos: "); 
 		Serial.println(i);
@@ -550,5 +553,3 @@ void SaveName(uint8_t deviceIndex, String sName)
 	}
 
 }
-
-
