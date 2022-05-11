@@ -1,9 +1,12 @@
 //	###################   Debugging   #####################
 // #define MY_DEBUG
 // #define SER_DEBUG
-// #define MY_DEBUG_VERBOSE_RF24								//Testen, welche zusätzlichen Infos angezeigt werden
+#define MY_SPECIAL_DEBUG									// für Extended Debug in FHEM
+//#define MY_DEBUG_VERBOSE_RF24								//Testen, welche zusätzlichen Infos angezeigt werden
 // #define MY_SPLASH_SCREEN_DISABLED
 // #define MY_SIGNAL_REPORT_ENABLED
+
+// #define MY_RF24_DATARATE RF24_1MBPS //falls RF-Nano im Netzwerk mitmachen sollen
 
 //	###################   Features   #####################
 // #define MY_REPEATER_FEATURE
@@ -20,11 +23,11 @@
 // ###################   Transport   #####################
 /*
 RF24_PA_MIN = 	-18dBm 		0	R_TX_Powerlevel_Pct 	25
-RF24_PA_LOW = 	-12dBm 		1	R_TX_Powerlevel_Pct
+RF24_PA_LOW = 	-12dBm 		1	R_TX_Powerlevel_Pct		#Gateway Serial Kanal 96 hat mehr Reichweite mit PA_LOW als mit PA_HIGH
 RF24_PA_HIGH = 	-6dBm 		2	R_TX_Powerlevel_Pct
 RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 */
-#define MY_RF24_PA_LEVEL 					RF24_PA_MIN  //EchoNote hatte Max -> Reichweite bis Gartenhaus (-29) und noch Empfangen (-149) bis hinter Steins Haus
+#define MY_RF24_PA_LEVEL 					RF24_PA_HIGH  //EchoNote hatte Max -> Reichweite bis Gartenhaus (-29) und noch Empfangen (-149) bis hinter Steins Haus
 // #define MY_RF24_PA_LEVEL 					RF24_PA_MAX
 #define MY_RADIO_RF24
 #define MY_RF24_CHANNEL 					96
@@ -36,12 +39,13 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 // #define MY_PASSIVE_NODE
 
 
+
 // ###################   Node Spezifisch   #####################
-#define SKETCH_VER            				"1.0-003"        			// Sketch version
+#define SKETCH_VER            				"1.0-006"        			// Sketch version
 #define SKETCH_NAME           				"Gateway"   		// Optional child sensor name
 
 
-#define HEARTBEAT_INTERVAL        			600000        //später alle 5 Minuten, zum Test alle 30 Sekunden
+#define HEARTBEAT_INTERVAL        			300000        //später alle 5 Minuten, zum Test alle 30 Sekunden
 
 
 #include <MySensors.h>
@@ -87,20 +91,26 @@ void receive(const MyMessage &message)
 	// DEBUG_PRINTLN(message.sender);
 
 	
-	if (!mGetAck(message) && message.sensor == CHILD_ECHO_TIMESTAMP)
+	if ((message.sensor == CHILD_ECHO_TIMESTAMP) && !message.isEcho())
 	{
 		if (message.type == V_TEXT)
 		{
 			char buffer[14];
 			message.getString(buffer);
-			// DEBUG_PRINT("GOT ");
-			// DEBUG_PRINTLN(buffer);
+			DEBUG_PRINT("GOT ");
+			DEBUG_PRINTLN(buffer);
 			
-			// DEBUG_PRINTLN("send test");
+			DEBUG_PRINTLN("send test");
+			
+			
+			
 			MyMessage msg (CHILD_ECHO_TIMESTAMP, V_TEXT);
 			msg.setDestination(message.sender);
 			msg.set(buffer);
-			send(msg);
+			send(msg); //senden erstmal deaktivieren (später liegen die automatisch als Echo zurückgegebenen Werte mittels isEcho im Client auswerten)
+			
+			
+			
 			// gatewayTransportSend(msg.setDestination(225).set("test2"));
 			// DEBUG_PRINTLN("transportSendRoute test2");
 			// transportSendRoute(msg.set("test2"));
