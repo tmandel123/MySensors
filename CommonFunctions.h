@@ -49,7 +49,9 @@
 #define DIGITAL_INPUT_SENSOR				3					// EnergyMeterPulseSensor, 
 #define LED_PWM_PIN							5
 #define LED_DIGITAL_PIN						5
-#define PULSE_LED							13					//war vor 19.1.2022 8
+#define PULSE_LED							8					//LED_BUILDIN geht nicht, weil Pin 13 für SCK belegt ist
+#define LED_ON								LOW					//Gemeinsamer Plus-Pol
+#define LED_OFF								HIGH				//Gemeinsamer Plus-Pol
 
 #define CHILD_OW_TEMP						10
 #define	CHILD_OW_TEMP_TEXT					("OW_Temp")			//flashhelper is not working with functions in OneWireMaster.ino
@@ -86,6 +88,10 @@
 #define	CHILD_PASSIVE_NODE_TEXT				(F("PassiveNode"))
 #define CHILD_PARENT_NODE					81
 #define	CHILD_PARENT_NODE_TEXT				(F("ParentNode"))
+#define CHILD_TX_OK							82
+#define	CHILD_TX_OK_TEXT					(F("Tx OK"))
+#define CHILD_TX_ERR 						83
+#define	CHILD_TX_ERR_TEXT 					(F("Tx ERR"))
 
 #define CHILD_CPU_TEMPERATURE				88
 #define	CHILD_CPU_TEMPERATURE_TEXT			(F("CpuTemp"))
@@ -114,6 +120,8 @@
 #define CHILD_BAT_VREF 						99
 #define CHILD_BAT_VREF_TEXT 				(F("Bat"))
 
+
+
 #include <VoltageReference.h>				// https://github.com/rlogiacco/VoltageReference Version 1.2.2
 // #include "C:\_Lokale_Daten_ungesichert\Arduino\libraries\Voltage_Reference\VoltageReference.h"				// https://github.com/rlogiacco/VoltageReference Version 1.2.2
 
@@ -138,6 +146,8 @@ MyMessage msgNewMeterValue					(CHILD_NEW_METER_VALUE,			V_TEXT);			//71
 
 MyMessage msgPassiveNode					(CHILD_PASSIVE_NODE, 			V_TEXT);			//80
 MyMessage msgParentNode						(CHILD_PARENT_NODE, 			V_TEXT);			//81
+MyMessage msgTxOK							(CHILD_TX_OK, 					V_TEXT);			//82
+MyMessage msgTxErr							(CHILD_TX_ERR, 					V_TEXT);			//83
 
 MyMessage msgCpuTemp						(CHILD_CPU_TEMPERATURE, 		V_TEXT);			//88
 MyMessage msgCompileDate					(CHILD_COMPILEDATE_NODE, 		V_TEXT);			//89
@@ -156,10 +166,12 @@ MyMessage msgBatvRefValue					(CHILD_BAT_VREF,				V_VOLTAGE);			//99
 
 VoltageReference vRef;
 
-int16_t 	avgRSSI = -29;
-int16_t 	nowRSSI = 0;
-
-
+int16_t 			avgRSSI 	= -29;
+int16_t 			nowRSSI 	= 0;
+#ifdef MY_INDICATION_HANDLER		//muss im Sketch selber gesetzt werden, damit es hier geladen wird
+static uint8_t		txOK 		= 0;
+static uint8_t		txERR 		= 0;
+#endif
 
 void myPresentation()
 {
@@ -197,6 +209,12 @@ void myPresentation()
 
 #ifdef WITH_BATTERY
 	present(CHILD_BAT_VREF,		 		S_MULTIMETER,		CHILD_BAT_VREF_TEXT);
+#endif
+
+
+#ifdef MY_INDICATION_HANDLER
+	present(CHILD_TX_OK, 				S_INFO,				CHILD_TX_OK_TEXT);
+	present(CHILD_TX_ERR, 				S_INFO,				CHILD_TX_ERR_TEXT);
 #endif
 	
 }
@@ -250,9 +268,34 @@ void myHeartBeatLoop()
 	send(msgCpuTemp.set(hwCPUTemperature()));			//FHEM: text_CpuTemp 		21
 
 
+	#ifdef MY_INDICATION_HANDLER
+		DEBUG_PRINT(F("txOK: "));
+		DEBUG_PRINT(txOK);
+		DEBUG_PRINT(F(" txERR: "));
+		DEBUG_PRINTLN(txERR);
+		send(msgTxOK.set(txOK));
+		send(msgTxErr.set(txERR));
+		txOK=0;
+		txERR=0;
+	#endif
 
 }
 
+#ifdef MY_INDICATION_HANDLER
+//https://forum.mysensors.org/topic/10947/handling-nacks/44?_=1592586286403
+void indication(indication_t ind)
+{
+  switch (ind)
+  {
+    case INDICATION_TX:
+      txOK++;
+      break;
+    case INDICATION_ERR_TX:
+      txERR++;
+      break;
+  }
+}
+#endif
 
 
 // void mySendInt8(MyMessage ThisMessage, uint8_t Integer)//RemoteReceiverActuator.ino
