@@ -12,7 +12,7 @@ ToDo in OneButton.h (to remove segmentation fault error in Arduino 1.8.8)
 	from:		OneButton(int pin, int active, bool pullupActive = true);
 	
 	
-	smartSleep Patch in MySensorsCore.cpp Line 619 
+	smartSleep Patch in MySensorsCore.cpp Line 619 ( MySensors 2.3.2 Line 685)
 		//Tmandel:
 		// wait(MY_SMART_SLEEP_WAIT_DURATION_MS);		// listen for incoming messages
 		if (wait(MY_SMART_SLEEP_WAIT_DURATION_MS, C_SET, I_VERSION)) //cancel sleeping request if there is a new C_SET Command
@@ -29,15 +29,24 @@ ToDo in OneButton.h (to remove segmentation fault error in Arduino 1.8.8)
 **/
 
 
+/*
+ACHTUNG: Button mit Interrupt funktioniert nicht zuverlässig, wenn der Arduino mit 3,3V betrieben wird. (Gut möglich, dass sogar weniger als 3,3V beim Arduino ankommen. 
+Das Netzteil von IKEA Stranne liefert ca. 5,8V was auch für einen 5V Arduino zu wenig ist, wenn vorher noch ein Spannungswandler kommt (der Spannungswandler benötigt ca. 1V mehr als die Ziel-Spannung)
+
+Testen mit Arduino Nano und LEDPIN 13 statt 5
+*/
+
+
 //	###################   Debugging   #####################
 // #define MY_DEBUG
-#define SER_DEBUG
-#define MY_DEBUG_VERBOSE_CORE
+// #define SER_DEBUG
+#define MY_SPECIAL_DEBUG									// für Extended Debug in FHEM
+// #define MY_DEBUG_VERBOSE_CORE
 #define MY_SPLASH_SCREEN_DISABLED
 // #define MY_SIGNAL_REPORT_ENABLED
 
 //	###################   Features   #####################
-#define MY_REPEATER_FEATURE
+// #define MY_REPEATER_FEATURE
 // #define MY_GATEWAY_SERIAL
 // #define MY_INCLUSION_MODE_FEATURE
 // #define MY_INCLUSION_BUTTON_FEATURE
@@ -58,28 +67,30 @@ RF24_PA_HIGH = 	-6dBm 		2	R_TX_Powerlevel_Pct
 RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 */
 
-#define MY_RF24_PA_LEVEL 					RF24_PA_HIGH
+#define MY_RF24_PA_LEVEL 					RF24_PA_LOW
 #define MY_RADIO_RF24
 #define MY_RF24_CHANNEL 					96
-// #define MY_TRANSPORT_WAIT_READY_MS 			(8000ul)
+// #define MY_TRANSPORT_WAIT_READY_MS 			(5000ul)
 #define MY_TRANSPORT_SANITY_CHECK
 
-#define MY_NODE_ID 							111
+#define MY_NODE_ID 							110
 // #define MY_PARENT_NODE_ID 					100		//without this passive node broadcasts everything to parent 255 (dont know what happens if 2 repeater receive this at the same time)
 // #define MY_PARENT_NODE_IS_STATIC
 // #define MY_PASSIVE_NODE
 // #define MY_CORE_ONLY						// does not call preHwInit() and before(), IRQ seems not to work
 
+#define MY_INDICATION_HANDLER									//erlaubt rewrite der Funktion void indication(indication_t ind) 
+
 // ###################   Node Spezifisch   #####################
-#define SKETCH_VER            				"1.0-005"        			// Sketch version
-#define SKETCH_NAME           				"LEDSwitch"   		// Optional child sensor name
+#define SKETCH_VER            				"1.0-006"        			// Sketch version
+#define SKETCH_NAME           				"LEDSwitch"   				// Optional child sensor name
 
 // #define WITH_BUTTON
 #define WITH_SLEEP
-
+#define MY_SMART_SLEEP_REVOKE_WAIT_DURATION_MS (300ul) 	// 300 seems to be OK (smaller values let the controller think that the node is still sleeping)
 
 #define SLEEP_TIME							30000
-#define MY_SMART_SLEEP_WAIT_DURATION_MS		(1000ul)
+#define MY_SMART_SLEEP_WAIT_DURATION_MS		(500ul)						//war 1000ul
 #define	TOGGLE_BUTTON						3
 
 #ifdef MY_REPEATER_FEATURE 
@@ -102,7 +113,7 @@ uint8_t	lastLevel = 0;
 uint8_t	heartBeatCounter = 0;
 uint32_t lastButtonPressed = 0;
 uint32_t lastHeartBeat = 0;
-volatile uint8_t currentLevel = 1; 			// Current LED level 0 or 1
+volatile uint8_t currentLevel = 1; 			// Current LED level 0 or 1	// 8Bit, weil uint8_t so besser als bool ins EEPROM passt
 
 
 void preHwInit() 
@@ -176,8 +187,8 @@ void loop()
 	if (currentLevel == 0)
 	{
 		DEBUG_PRINTLN("prepare to sleep");
-		setIrqOff();
 		#ifdef WITH_BUTTON
+		setIrqOff();
 		int8_t wakeupReason = sleep(digitalPinToInterrupt(TOGGLE_BUTTON), FALLING , SLEEP_TIME, true);
 		if (wakeupReason == digitalPinToInterrupt(TOGGLE_BUTTON))
 		{
@@ -188,7 +199,7 @@ void loop()
 			setIrqOn();
 		}
 		#else
-		sleep(SLEEP_TIME, true);			
+		sleep(SLEEP_TIME, true);		//true = smartSleep	
 		#endif
 		
 		heartBeatCounter++;
