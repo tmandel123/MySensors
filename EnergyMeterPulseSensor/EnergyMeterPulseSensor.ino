@@ -5,8 +5,9 @@
 20181114 Version 1.34		boolean informGW = false; - > bool informGW = false;
 20181114 Version 1.4-003	MY_REPEATER_FEATURE deaktiviert und sendSketchInfo(SKETCH_NAME, SKETCH_VER " " __TIME__ " " __DATE__);
 							Es gibt immer wieder Aussetzer von mehreren Stunden. Danach läuft alles wieder normal. Zählerwerte gehen jedoch nicht verloren. Laufzeit akutell 36 Tage.
-20220516 Version 1.5-007	Anpassungen an MySensors 2.3.2 (bei receive -> !message.isEcho() statt !mGetAck(message) (produktiv seid 13.5.2022)
+20220516 Version 1.5-007	Anpassungen an MySensors 2.3.2 (bei receive -> !message.isEcho() statt !mGetAck(message) (produktiv seit 13.5.2022)
 							Anpassugnen für PULSE_LED (geht jetzt sofort bei onPulse an)
+20220927 Version 1.5-008	Anpassungen für Übermittlung von 0 Watt Werten, falls PV-Einspeisung den Zähler stoppt
 
 
 *************************************************/
@@ -56,7 +57,7 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 
 
 // ###################   Node Spezifisch   #####################
-#define SKETCH_VER            				"1.5-007"        		// Sketch version
+#define SKETCH_VER            				"1.5-008"        		// Sketch version
 #define SKETCH_NAME           				"EnergyMeter"   		// Optional child sensor name
 
 
@@ -76,6 +77,7 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 #define HEARTBEAT_INTERVAL					300000				//default: 300000
 #define INTERNALS_UPDATE_INTERVAL			3600000				//default: 3600000	jede Stunde Update senden (Debug, Threshold usw)
 #define SEND_FREQUENCY						30000				//default: 30000	Minimum time between send (in milliseconds). We don't wnat to spam the gateway.
+#define MAX_CYCLES_LOW_ENERGY				3					//default: 3		nach so vielen Durchläufen 0 Watt anzeigen
 
 
 
@@ -105,6 +107,8 @@ volatile bool 		informGW = false;
 bool 				firstLoop = true;
 
 uint8_t 			debugLevel = 0;								// sets the debug level, 0 = basic info. 1 = streaming level info. 2 = sent level streaming to gateway.
+uint8_t 			LowEnergyCounter = 0;						// Falls PV-Leistung höher als Bezug, dann soll nach 5xSEND_FREQUENCY 0 Watt angezeigt werden
+
 
 uint32_t 			oldPulseCount = 0;
 uint32_t 			oldWatt = 0;
@@ -231,9 +235,15 @@ void loop()
 
 
 		
-	}	
+	}
 	
-	// Only send values at a maximum frequency or woken up from sleep
+	if (LowEnergyCounter >= (uint8_t) MAX_CYCLES_LOW_ENERGY)
+	{
+		LowEnergyCounter=0;
+		watt = oldWatt = 0;
+		send(msgPowerMeter.setType(V_WATT).set(watt));  // Send watt value to gw
+	}
+	
 	if ((currentTime - lastSend) > (uint32_t)SEND_FREQUENCY) 
 	{
 		lastSend = currentTime;
@@ -251,13 +261,15 @@ void loop()
 				send(msgPowerMeter.setType(V_WATT).set(watt));  // Send watt value to gw
 			}
 			else
-			{
+			{			
+				// Debug Kanal informieren
 				send(msgDebugReturnString.set(watt));
 			}
 			DEBUG_PRINT("Watt:");
 			DEBUG_PRINTLN(watt);
 			oldWatt = watt;
 		}
+
 
 		// Pulse cout has changed
 		if (pulseCount != oldPulseCount) 
@@ -267,11 +279,13 @@ void loop()
 			float kwh = ((float)pulseCount/((float)PULSE_FACTOR));
 			oldPulseCount = pulseCount;
 			send(msgPowerMeter.setType(V_KWH).set(kwh, 3));  // Send kwh value to gw
+			LowEnergyCounter=0;	//Counter resetten
 
 		}
 		else
 		{
 			DEBUG_PRINTLN("OLD PULSE");
+			LowEnergyCounter++;
 		}
 
 	} 
