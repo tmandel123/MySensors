@@ -32,7 +32,7 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 // #define MY_RF24_CE_PIN 						10 				//nur für RF-Nano verwenden
 // #define MY_RF24_CS_PIN 						9				//nur für RF-Nano verwenden
 // #define MY_RF24_DATARATE 					RF24_1MBPS		//nur verwenden, wenn mindestens 1 RF-Nano im Netzwerk eingebucht werden soll
-#define MY_RF24_CHANNEL 					96
+// #define MY_RF24_CHANNEL 					96
 // #define MY_TRANSPORT_WAIT_READY_MS 			(5000ul)
 //#define MY_TRANSPORT_SANITY_CHECK
 
@@ -40,7 +40,7 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 // #define MY_NODE_ID 							180		//Test
 // #define MY_NODE_ID 							181			//Teichwasser Batterie Sensor
 #define MY_NODE_ID 							182			//Gartenhaus Temperatur Sensors
-#define MY_PARENT_NODE_ID 					50		//without this the node broadcasts everything to parent 255 (dont know what happens, if 2 repeater receive this at the same time)
+#define MY_PARENT_NODE_ID 					0		//without this the node broadcasts everything to parent 255 (dont know what happens, if 2 repeater receive this at the same time)
 // #define MY_PARENT_NODE_IS_STATIC
 #define MY_PASSIVE_NODE
 
@@ -55,8 +55,8 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 #define ONE_WIRE_BUS 4 // Pin where dallas sensor is connected 
 
 #define OW_RESOLUTION						12
-// #define SLEEP_TIME							600000
-#define SLEEP_TIME							10000
+#define SLEEP_TIME							600000
+// #define SLEEP_TIME							10000
 #define MAX_ATTACHED_DS18B20      			8							//mehr als 8 funktioniert nicht mit den vorhandenen Methoden
 
 #define EEPROM_DEVICE_NAME_LENGTH   		8
@@ -74,7 +74,7 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 
 
 
-// #define	WITH_BATTERY						//DS18B20 Sensoren funktionieren nicht mit weniger als 2,5V, eigentlich müsste OneWireMaster mit 5V und Netzteil betriebern werden
+#define	WITH_BATTERY						//DS18B20 Sensoren funktionieren nicht mit weniger als 2,5V, eigentlich müsste OneWireMaster mit 5V und Netzteil betriebern werden
 
 #include <MySensors.h>
 #include <DallasTemperature.h>	// https://github.com/milesburton/Arduino-Temperature-Control-Library Version 3.8.0
