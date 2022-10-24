@@ -129,7 +129,9 @@ void receive(const MyMessage &message)
 	
 		
 	// if ((message.sender == SENDER_REMOTE_NODE) && !mGetAck(message))
-	if (!mGetAck(message))
+
+	// if (!mGetAck(message))
+	if (!message.isEcho())
 	{
 		if ((message.type == V_TEXT) && (message.sensor == CHILD_MULTI_BUTTON))
 		{
