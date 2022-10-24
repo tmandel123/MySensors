@@ -25,11 +25,11 @@ RF24_PA_LOW = -12dBm
 RF24_PA_HIGH = -6dBm 
 RF24_PA_MAX = 0dBm
 */
-#define MY_RF24_PA_LEVEL 					RF24_PA_MAX	//NodeID 50, seit MySensors 2.3.1 scheint auch PA_MAX zu funktionieren (Shielded Modul)
+#define MY_RF24_PA_LEVEL 					RF24_PA_LOW	//NodeID 50, seit MySensors 2.3.1 scheint auch PA_MAX zu funktionieren (Shielded Modul)
 #define MY_RADIO_RF24
 #define MY_RF24_CHANNEL 					96
 #define MY_TRANSPORT_WAIT_READY_MS 			(5000ul)
-#define MY_RF24_SANITY_CHECK
+#define MY_TRANSPORT_SANITY_CHECK
 
 #define MY_NODE_ID 							130
 #define MY_PARENT_NODE_ID 					50
@@ -44,8 +44,8 @@ RF24_PA_MAX = 0dBm
 #define CHILD_ID_TEXT						0
 
 
-#include <MySensors.h>
-#include <Servo.h>
+// #include <MySensors.h>
+// #include <Servo.h>
 
 			
 
@@ -175,7 +175,7 @@ void loop()
 	}
 }
 
-void mySendString(MyMessage ThisMessage, const char *myString)
+void mySendString(MyMessage ThisMessage, const char *myString)//BatteryRemoteButton.ino
 {
 	int myCounter=0;
 	bool sendStatus=false;
