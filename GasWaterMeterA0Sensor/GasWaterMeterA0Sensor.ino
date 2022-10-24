@@ -465,7 +465,8 @@ void receive(const MyMessage &message)
 	// DEBUG_PRINT(" Len: ");
 	// DEBUG_PRINTLN(mGetLength(message));
 
-	if ((message.sensor == CHILD_ID_ANALOG) && !mGetAck(message))
+	// if ((message.sensor == CHILD_ID_ANALOG) && !mGetAck(message))
+	if ((message.sensor == CHILD_ID_ANALOG) && !message.isEcho())
 	{
 		switch (message.type) 
 		{
