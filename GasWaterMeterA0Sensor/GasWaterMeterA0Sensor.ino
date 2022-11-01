@@ -484,7 +484,7 @@ void receive(const MyMessage &message)
 			}
 		}
 	}
-	else if ((message.sensor == CHILD_ID_DEBUG) && !mGetAck(message))
+	else if ((message.sensor == CHILD_ID_DEBUG) && !message.isEcho())
 	{	
 		switch (message.type) 
 		{
@@ -517,10 +517,10 @@ void receive(const MyMessage &message)
   	}
 	else
 	{
-		if (mGetAck(message))
+		if (message.isEcho())
 		{
-			// DEBUG_PRINT("got Ack from: ");
-			// DEBUG_PRINTLN(message.sensor);
+			DEBUG_PRINT("got Ack from: ");
+			DEBUG_PRINTLN(message.sensor);
 		}
 		// debugMessage("Received invalid message from gw! ", "");
 	}
