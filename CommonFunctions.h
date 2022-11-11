@@ -1,9 +1,13 @@
-// #define STR_HELPER(x)						x						//# vor x bedeutet, dass Hochkommata um den String herum platziert werden
-// #define COMPILE_STRING 						STR_HELPER(__TIME__ __DATE__)
+/**
 
-// #define	DATESTRING								__DATE__
-// #define	TIMESTRING								__TIME__
-// #define COMPILE_STRING 							GLUE(DATESTRING,TIMESTRING)
+#############################		Versionen		###################################
+ 
+20221110 Verison 2.01		Versionierung begonnen
+
+
+
+
+*/
 
 
 
