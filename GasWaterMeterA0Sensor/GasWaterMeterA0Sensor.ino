@@ -80,8 +80,8 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 // #define MY_TRANSPORT_SANITY_CHECK			//enable regular transport sanity checks -> wirkt nur bei Gateway oder Repeater, ist dort per default aktiviert
 
 
-#define MY_PARENT_NODE_ID 					0
-#define MY_PARENT_NODE_IS_STATIC
+// #define MY_PARENT_NODE_ID 					0
+// #define MY_PARENT_NODE_IS_STATIC
 // #define MY_PASSIVE_NODE
 
 
