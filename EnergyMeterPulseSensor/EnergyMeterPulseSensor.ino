@@ -8,9 +8,18 @@
 20220516 Version 1.5-007	Anpassungen an MySensors 2.3.2 (bei receive -> !message.isEcho() statt !mGetAck(message) (produktiv seit 13.5.2022)
 							Anpassugnen für PULSE_LED (geht jetzt sofort bei onPulse an)
 20220927 Version 1.5-008	Anpassungen für Übermittlung von 0 Watt Werten, falls PV-Einspeisung den Zähler stoppt
+20220927 Version 1.5-009	DEBUG_SERIAL(MY_BAUD_RATE) von before() nach preHwInit()
 
 
 *************************************************/
+
+
+#define SKETCH_VER            				"1.5-009"        		// Sketch version
+#define SKETCH_NAME           				"EnergyMeter"   		// Optional child sensor name
+
+
+
+
 
 //	###################   Debugging   #####################
 // #define MY_DEBUG												//Output kann im LogParser analysiert werden https://www.mysensors.org/build/parser
@@ -57,11 +66,6 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 
 
 // ###################   Node Spezifisch   #####################
-#define SKETCH_VER            				"1.5-008"        		// Sketch version
-#define SKETCH_NAME           				"EnergyMeter"   		// Optional child sensor name
-
-
-
 
 #define PULSE_FACTOR						1000				// Nummber of blinks per KWH of your meeter
 #define MAX_WATT							12000				// Max watt value to report. This filetrs outliers.
@@ -69,7 +73,7 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 #define EEPROM_DEVICE_DEBUG_LEVEL			0					//8  Bit	Position im Flash
 #define EEPROM_METER_VALUE					1					//32 Bit	Position im Flash
 #define	DEFAULT_METER_VALUE					18010892			// last seen Value from Enerny Meter to set to the EEPROM
-
+#define MAX_DEBUG_LEVEL         			9
 
 // Sonstige Werte
 
@@ -93,7 +97,7 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 // #endif
 
 
-#define MAX_DEBUG_LEVEL         			9
+
 
 
 
@@ -124,15 +128,15 @@ volatile uint32_t 	watt = 0;
 
 void preHwInit() //kein serieller Output 
 {
-
+	//Serielles Interface nur setzten, falls nicht schon von MySensors Framework erledigt
+	#if !defined MY_DEBUG
+		DEBUG_SERIAL(MY_BAUD_RATE);	// MY_BAUD_RATE from MyConfig.h 115200ul, gehört nach preHwInit. Falls in before(), friert der Arduino ein
+	#endif
 }
 
 void before() 
 {
-//Serielles Interface nur setzten, falls nicht schon von MySensors Framework erledigt
-#if !defined MY_DEBUG
-	DEBUG_SERIAL(MY_BAUD_RATE);	// MY_BAUD_RATE from MyConfig.h 115200ul
-#endif
+
 	DEBUG_PRINTLN("before");
 	
 	debugLevel = loadState(EEPROM_DEVICE_DEBUG_LEVEL); 	//8 Bit
@@ -203,7 +207,7 @@ void loop()
 	if ((((currentTime - lastHeartBeat) > (uint32_t)HEARTBEAT_INTERVAL)) || firstLoop || informGW)
 	{
 		lastHeartBeat = currentTime;
-		DEBUG_PRINT("informGW");
+		DEBUG_PRINT("informGW: ");
 		DEBUG_PRINTLN(informGW);
 		if (informGW)
 		{
@@ -372,33 +376,4 @@ void onPulse()
 
 
 
-//This function will write a 4 byte (32bit) uint32_t to the eeprom at
-//the specified pos to pos + 3.
-void writeEeprom32(int pos, uint32_t value)
-{
-	//Decomposition from a uint32_t to 4 bytes by using bitshift.
-	//One = Most significant -> Four = Least significant byte
-	byte four = (value & 0xFF);
-	byte three = ((value >> 8) & 0xFF);
-	byte two = ((value >> 16) & 0xFF);
-	byte one = ((value >> 24) & 0xFF);
-
-	//Write the 4 bytes into the eeprom memory.
-	saveState(pos, four);
-	saveState(pos + 1, three);
-	saveState(pos + 2, two);
-	saveState(pos + 3, one);
-}
-
-uint32_t readEeprom32(int pos)
-{
-	//Read the 4 bytes from the eeprom memory.
-	uint32_t four = loadState(pos);
-	uint32_t three = loadState(pos + 1);
-	uint32_t two = loadState(pos + 2);
-	uint32_t one = loadState(pos + 3);
-
-	//Return the recomposed uint32_t by using bitshift.
-	return ((four << 0) & 0xFF) + ((three << 8) & 0xFFFF) + ((two << 16) & 0xFFFFFF) + ((one << 24) & 0xFFFFFFFF);
-}  
 

@@ -22,7 +22,7 @@ RF24_PA_LOW = 	-12dBm 		1	R_TX_Powerlevel_Pct
 RF24_PA_HIGH = 	-6dBm 		2	R_TX_Powerlevel_Pct
 RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 */
-#define MY_RF24_PA_LEVEL 					RF24_PA_MAX	//NodeID 50, seit MySensors 2.3.1 scheint auch PA_MAX zu funktionieren (Shielded Modul)
+#define MY_RF24_PA_LEVEL 					RF24_PA_HIGH	//NodeID 50, seit MySensors 2.3.1 scheint auch PA_MAX zu funktionieren (Shielded Modul)
 #define MY_RADIO_RF24
 #define MY_RF24_CHANNEL 					96
 // #define MY_TRANSPORT_WAIT_READY_MS 			(5000ul)
@@ -34,7 +34,7 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 
 
 // ###################   Node Spezifisch   #####################
-#define SKETCH_VER            				"1.2-007"        			// Sketch version
+#define SKETCH_VER            				"1.2-008"        			// Sketch version
 #define SKETCH_NAME           				"Repeater Node"   		// Optional child sensor name
 
 #define HEARTBEAT_INTERVAL        			300000        //später alle 5 Minuten, zum Test alle 30 Sekunden
@@ -50,10 +50,9 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 uint32_t lastHeartBeat = HEARTBEAT_INTERVAL - 5000; //das erste Mal sollte nach 5 Sekunden etwas passieren
 
 
-void preHwInit() 
+void preHwInit() //kein serieller Output 
 {
-	DEBUG_SERIAL(MY_BAUD_RATE);
-	DEBUG_PRINTLN("preHwInit...");
+
 }
 
 void before()

@@ -231,7 +231,7 @@ void loop()
 	send(msgOwResolution.set(OW_RESOLUTION));
 
 	#ifdef WITH_BATTERY	
-		BatteryVRef();
+		// BatteryVRef();//wird jetzt mit myHeartBeatLoop übermittelt; ToDo: prüfen, ob die ermittelte Spannung korrekt ist 
 		smartSleep((uint32_t)SLEEP_TIME);
 	#else
 		wait((uint32_t)SLEEP_TIME);

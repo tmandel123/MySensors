@@ -82,7 +82,7 @@
 #define CHILD_DEBUG_LEVEL					70
 #define	CHILD_DEBUG_LEVEL_TEXT				(F("Dbg_Level"))
 #define CHILD_NEW_METER_VALUE				71
-#define	CHILD_NEW_METER_VALUE_TEXT			(F("SetMeterValue"))
+#define	CHILD_NEW_METER_VALUE_TEXT			(F("SetGetMeterValue"))
 
 #define CHILD_PASSIVE_NODE					80
 #define	CHILD_PASSIVE_NODE_TEXT				(F("PassiveNode"))
@@ -121,53 +121,67 @@
 #define CHILD_BAT_VREF_TEXT 				(F("Bat"))
 
 
+// #ifdef WITH_BATTERY
+// #include <VoltageReference.h>				// https://github.com/rlogiacco/VoltageReference Version 1.2.2
+// #endif
 
-#include <VoltageReference.h>				// https://github.com/rlogiacco/VoltageReference Version 1.2.2
-// #include "C:\_Lokale_Daten_ungesichert\Arduino\libraries\Voltage_Reference\VoltageReference.h"				// https://github.com/rlogiacco/VoltageReference Version 1.2.2
-
-MyMessage msgOwTemp							(CHILD_OW_TEMP,  				V_TEMP);			//10-17
-MyMessage msgDebugOWConList					(CHILD_OW_CONNECTED,			V_TEXT);			//18
-MyMessage msgDebugOWDevCount				(CHILD_OW_DEV_COUNT,			V_TEXT);			//19
-MyMessage msgOwName							(CHILD_OW_TEMP_NAME,  			V_TEXT);			//20-27
-MyMessage msgOwResolution					(CHILD_OW_RESOLUTION,  			V_TEXT);			//28
+// MyMessage msgOwTemp							(CHILD_OW_TEMP,  				V_TEMP);			//10-17
+// MyMessage msgDebugOWConList					(CHILD_OW_CONNECTED,			V_TEXT);			//18
+// MyMessage msgDebugOWDevCount				(CHILD_OW_DEV_COUNT,			V_TEXT);			//19
+// MyMessage msgOwName							(CHILD_OW_TEMP_NAME,  			V_TEXT);			//20-27
+// MyMessage msgOwResolution					(CHILD_OW_RESOLUTION,  			V_TEXT);			//28
 
 
-MyMessage msgMultiButton					(CHILD_MULTI_BUTTON,			V_TEXT);			//30
+// MyMessage msgMultiButton					(CHILD_MULTI_BUTTON,			V_TEXT);			//30
 
-MyMessage msgPowerMeter						(CHILD_POWER_METER,				V_WATT);			//35
+// MyMessage msgPowerMeter						(CHILD_POWER_METER,				V_WATT);			//35
 
-MyMessage msgServoState						(CHILD_SERVO_STATE,				V_TEXT);			//40
+// MyMessage msgServoState						(CHILD_SERVO_STATE,				V_TEXT);			//40
 
-MyMessage msgDimmerState					(CHILD_SINGLE_LED_DIMMER,		V_DIMMER);			//50
-MyMessage msgSwitchState					(CHILD_SINGLE_LED_SWITCH,		V_STATUS);			//51
+// MyMessage msgDimmerState					(CHILD_SINGLE_LED_DIMMER,		V_DIMMER);			//50
+// MyMessage msgSwitchState					(CHILD_SINGLE_LED_SWITCH,		V_STATUS);			//51
 
 MyMessage msgDebugLevel						(CHILD_DEBUG_LEVEL,				V_TEXT);			//70
-MyMessage msgNewMeterValue					(CHILD_NEW_METER_VALUE,			V_TEXT);			//71
 
-MyMessage msgPassiveNode					(CHILD_PASSIVE_NODE, 			V_TEXT);			//80
-MyMessage msgParentNode						(CHILD_PARENT_NODE, 			V_TEXT);			//81
-MyMessage msgTxOK							(CHILD_TX_OK, 					V_TEXT);			//82
-MyMessage msgTxErr							(CHILD_TX_ERR, 					V_TEXT);			//83
+#if MY_NODE_ID > 99 && MY_NODE_ID < 110
+	MyMessage msgNewMeterValue					(CHILD_NEW_METER_VALUE,			V_TEXT);			//71
+#endif
 
-MyMessage msgCpuTemp						(CHILD_CPU_TEMPERATURE, 		V_TEXT);			//88
+#ifdef WITH_NODE_INFO
+	MyMessage msgPassiveNode					(CHILD_PASSIVE_NODE, 			V_TEXT);			//80
+	MyMessage msgParentNode						(CHILD_PARENT_NODE, 			V_TEXT);			//81
+#endif
+
+#ifdef MY_INDICATION_HANDLER
+	MyMessage msgTxOK							(CHILD_TX_OK, 					V_TEXT);			//82
+	MyMessage msgTxErr							(CHILD_TX_ERR, 					V_TEXT);			//83
+#endif
+
+// MyMessage msgCpuTemp						(CHILD_CPU_TEMPERATURE, 		V_TEXT);			//88
 MyMessage msgCompileDate					(CHILD_COMPILEDATE_NODE, 		V_TEXT);			//89
 
-MyMessage msgHwTime							(CHILD_HWTIME, 					V_TEXT);
-MyMessage msgSendingRSSI					(CHILD_TX_RSSI, 				V_TEXT);
-MyMessage msgPaLevel						(CHILD_RF24_PA_LEVEL, 			V_TEXT);
-MyMessage msgRFChannel						(CHILD_RF24_CHANNEL, 			V_TEXT);
-MyMessage msgEchoTimeStamp					(CHILD_ECHO_TIMESTAMP, 			V_TEXT);
-MyMessage msgEchoRunTime					(CHILD_ECHO_RUNTIME, 			V_TEXT);
+#ifdef WITH_HWTIME
+	MyMessage msgHwTime							(CHILD_HWTIME, 					V_TEXT);	
+#endif
+
+#ifdef WITH_RF24_INFO
+	MyMessage msgSendingRSSI					(CHILD_TX_RSSI, 				V_TEXT);
+	MyMessage msgPaLevel						(CHILD_RF24_PA_LEVEL, 			V_TEXT);
+	MyMessage msgRFChannel						(CHILD_RF24_CHANNEL, 			V_TEXT);
+	int16_t 			avgRSSI 	= -29;
+	int16_t 			nowRSSI 	= 0;
+#endif
+
+// MyMessage msgEchoTimeStamp					(CHILD_ECHO_TIMESTAMP, 			V_TEXT);
+// MyMessage msgEchoRunTime					(CHILD_ECHO_RUNTIME, 			V_TEXT);
 MyMessage msgDebugReturnString				(CHILD_DEBUG_RETURN, 			V_TEXT);
-MyMessage msgPacketRatio					(CHILD_PACKET_RATIO, 			V_TEXT);			//97
+// MyMessage msgPacketRatio					(CHILD_PACKET_RATIO, 			V_TEXT);			//97
+#ifdef WITH_BATTERY
+	MyMessage msgBatvRefValue					(CHILD_BAT_VREF,				V_VOLTAGE);			//99
+#endif
 
+bool NodePresented = false;
 
-MyMessage msgBatvRefValue					(CHILD_BAT_VREF,				V_VOLTAGE);			//99
-
-VoltageReference vRef;
-
-int16_t 			avgRSSI 	= -29;
-int16_t 			nowRSSI 	= 0;
 #ifdef MY_INDICATION_HANDLER		//muss im Sketch selber gesetzt werden, damit es hier geladen wird
 static uint8_t		txOK 		= 0;
 static uint8_t		txERR 		= 0;
@@ -176,14 +190,22 @@ static uint8_t		txERR 		= 0;
 void myPresentation()
 {
 	DEBUG_PRINTLN(F("myPresentation"));
-	
-	present(CHILD_PASSIVE_NODE, 		S_INFO,				CHILD_PASSIVE_NODE_TEXT);
-	present(CHILD_PARENT_NODE, 			S_INFO,				CHILD_PARENT_NODE_TEXT);
+	NodePresented = true;
 	present(CHILD_COMPILEDATE_NODE, 	S_INFO,				CHILD_COMPILEDATE_NODE_TEXT);
-	present(CHILD_CPU_TEMPERATURE, 		S_INFO,				CHILD_CPU_TEMPERATURE_TEXT);
-	present(CHILD_TX_RSSI, 				S_INFO, 			CHILD_TX_RSSI_TEXT);
-	present(CHILD_RF24_PA_LEVEL, 		S_INFO, 			CHILD_RF24_PA_LEVEL_TEXT);
-	present(CHILD_RF24_CHANNEL, 		S_INFO,				CHILD_RF24_CHANNEL_TEXT);
+	// present(CHILD_CPU_TEMPERATURE, 		S_INFO,				CHILD_CPU_TEMPERATURE_TEXT);
+	
+	#ifdef WITH_NODE_INFO
+		present(CHILD_PASSIVE_NODE, 		S_INFO,				CHILD_PASSIVE_NODE_TEXT);
+		present(CHILD_PARENT_NODE, 			S_INFO,				CHILD_PARENT_NODE_TEXT);
+	#endif
+	
+
+	#ifdef WITH_RF24_INFO
+		present(CHILD_TX_RSSI, 				S_INFO, 			CHILD_TX_RSSI_TEXT);
+		present(CHILD_RF24_PA_LEVEL, 		S_INFO, 			CHILD_RF24_PA_LEVEL_TEXT);
+		present(CHILD_RF24_CHANNEL, 		S_INFO,				CHILD_RF24_CHANNEL_TEXT);
+	#endif
+	
 	present(CHILD_DEBUG_LEVEL,	 		S_INFO,				CHILD_DEBUG_LEVEL_TEXT);
 	present(CHILD_DEBUG_RETURN, 		S_INFO,				CHILD_DEBUG_RETURN_TEXT);
 
@@ -228,44 +250,66 @@ uint16_t hwCPUFrequency(void)
 uint16_t hwCPUVoltage(void)
 uint8_t getParentNodeId(void)	//im FHEM Standard wird es als parentId in den Readings angezeigt
 **/
+#ifdef WITH_BATTERY
+void BatteryVRef()
+{
+	// VoltageReference vRef;
+	uint8_t batteryPcntVcc;
+	float batVoltage;
+	// uint16_t vcc = vRef.readVcc(); //5000 oder 3000 mA
+	uint16_t vcc = hwCPUVoltage(); //5000 oder 3000 mA
+	vcc=constrain(vcc, BAT_VREF_MIN_VOLTATE, BAT_VREF_MAX_VOLTATE);
+	batteryPcntVcc = map(vcc, BAT_VREF_MIN_VOLTATE, BAT_VREF_MAX_VOLTATE, 0, 100); 
+	batVoltage  = (float)vcc / 1000;
+	sendBatteryLevel(batteryPcntVcc);
+	send(msgBatvRefValue.set(batVoltage,3));
+}
+#endif
 
 void myHeartBeatLoop()
 {
+	sendHeartbeat();
 	DEBUG_PRINTLN(F("myHeartBeatLoop"));
-	#if !defined WITH_BATTERY //millis is not counted during sleep
-		//CHILD_HWTIME
-		char buffer[16];
-		uint32_t currentSecs = ( millis() / 1000);
-		uint8_t day = (currentSecs / 86400) % 365; 
-		uint8_t hour = (currentSecs / 3600) % 24; 
-		uint8_t min = (currentSecs / 60) % 24; 
-		uint8_t sec = currentSecs % 60; 
-		sprintf(buffer, "%d %02d:%02d:%02d",day,hour,min,sec);
-		send(msgHwTime.set(buffer));
-		// DEBUG_PRINT("HWTIME: ");
-		// DEBUG_PRINTLN(buffer);
+	#ifdef WITH_HWTIME
+		#if !defined WITH_BATTERY //millis is not counted during sleep
+			//CHILD_HWTIME
+			char buffer[16];
+			uint32_t currentSecs = ( millis() / 1000);
+			uint8_t day = (currentSecs / 86400) % 365; 
+			uint8_t hour = (currentSecs / 3600) % 24; 
+			uint8_t min = (currentSecs / 60) % 24; 
+			uint8_t sec = currentSecs % 60; 
+			sprintf(buffer, "%d %02d:%02d:%02d",day,hour,min,sec);
+			send(msgHwTime.set(buffer));
+			// DEBUG_PRINT("HWTIME: ");
+			// DEBUG_PRINTLN(buffer);
+		#endif
 	#endif
 
 	//CHILD_TX_RSSI
-	nowRSSI=RF24_getSendingRSSI();
-	avgRSSI=((avgRSSI*7)+(nowRSSI))/8;
-	send(msgSendingRSSI.set(avgRSSI));
-	send(msgPaLevel.set(PA_LEVEL_TEXT));
-	send(msgRFChannel.set(MY_RF24_CHANNEL));
-	
-	#ifdef MY_PASSIVE_NODE
-		send(msgPassiveNode.set(1));
-	#else
-		send(msgPassiveNode.set(0));
+	#ifdef WITH_RF24_INFO
+		nowRSSI=RF24_getSendingRSSI();
+		avgRSSI=((avgRSSI*7)+(nowRSSI))/8;
+		send(msgSendingRSSI.set(avgRSSI));
+		send(msgPaLevel.set(PA_LEVEL_TEXT));
+		send(msgRFChannel.set(MY_RF24_CHANNEL));
 	#endif
-	#if MY_PARENT_NODE_ID == (AUTO)
-		send(msgParentNode.set("AUTO"));
-	#else
-		send(msgParentNode.set("fixed"));
-	#endif	
+	
+	#ifdef WITH_NODE_INFO
+		#ifdef MY_PASSIVE_NODE
+			send(msgPassiveNode.set(1));
+		#else
+			send(msgPassiveNode.set(0));
+		#endif
+		#if MY_PARENT_NODE_ID == (AUTO)
+			send(msgParentNode.set("AUTO"));
+		#else
+			send(msgParentNode.set("fixed"));
+		#endif	
+	#endif
 	
 	send(msgCompileDate.set(F(__DATE__ " " __TIME__)));				//FHEM: text_CompileDate	Jan 21 2022 16:03:17
-	send(msgCpuTemp.set(hwCPUTemperature()));			//FHEM: text_CpuTemp 		21
+	// send(msgCpuTemp.set(hwCPUTemperature()));						//FHEM: text_CpuTemp 		21
 
 
 	#ifdef MY_INDICATION_HANDLER
@@ -277,6 +321,10 @@ void myHeartBeatLoop()
 		send(msgTxErr.set(txERR));
 		txOK=0;
 		txERR=0;
+	#endif
+	
+	#ifdef WITH_BATTERY
+		BatteryVRef();
 	#endif
 
 }
@@ -340,10 +388,10 @@ void indication(indication_t ind)
 	// }
 // }
 
-void mySendSketchInfo()
-{
-	sendSketchInfo(SKETCH_NAME, SKETCH_VER ); //SendString in FHEM: SKETCH_VERSION -->  1.5-007 20220119 16:24
-}
+// void mySendSketchInfo()
+// {
+	// sendSketchInfo(SKETCH_NAME, SKETCH_VER ); //SendString in FHEM: SKETCH_VERSION -->  1.5-007 20220119 16:24
+// }
 
 // void getCompileDateTime(char const *date, char *buff) {
     // int month, day, year;
@@ -392,34 +440,10 @@ void mySendSketchInfo()
 	// DEBUG_PRINTLN(RF24_getSendingRSSI());
 // }
 
-void BatteryVRef()
-{
-	uint8_t batteryPcntVcc;
-	float batVoltage;
-	uint16_t vcc = vRef.readVcc(); //5000 oder 3000 mA
-	// uint16_t vccCorrect = (vcc * float(BAT_VREF_CORRECTION_VALUE));
-	
-	// DEBUG_PRINT("vcc vor constrain: ");
-	// DEBUG_PRINTLN(vcc);
 
-	vcc=constrain(vcc, BAT_VREF_MIN_VOLTATE, BAT_VREF_MAX_VOLTATE);
-	batteryPcntVcc = map(vcc, BAT_VREF_MIN_VOLTATE, BAT_VREF_MAX_VOLTATE, 0, 100); 
-
-	// DEBUG_PRINT("vcc: ");
-	// DEBUG_PRINTLN(vcc);
-	
-	batVoltage  = (float)vcc / 1000;
-
-	// DEBUG_PRINT("batVoltage: ");
-	// DEBUG_PRINTLN(batVoltage);
-	
-	sendBatteryLevel(batteryPcntVcc);
-	send(msgBatvRefValue.set(batVoltage,3));
-}
 
 void showEEpromChar()
 {
-	// debugMessage("showEEprom", "");
 	uint8_t counter=0;
 	uint8_t Zeichen;
 	for (uint8_t i = 0; i<16; i++)
@@ -448,7 +472,6 @@ void showEEpromChar()
 
 void showEEpromHex()
 {
-	// debugMessage("showEEprom", "");
 	uint8_t counter=0;
 	uint8_t Zeichen;
 	for (uint8_t i = 0; i<16; i++)
@@ -459,7 +482,6 @@ void showEEpromHex()
 			if (Zeichen < 16)
 			{
 				Serial.print("0");
-				
 			}
 			Serial.print(String(Zeichen,HEX));
 			if (j < 15)
@@ -471,3 +493,54 @@ void showEEpromHex()
 		Serial.println("");
 	}
 }
+
+
+
+void writeEeprom16(uint8_t pos, uint16_t value) 
+{
+  saveState(pos, ((uint16_t)value >> 8));
+  pos++;
+  saveState(pos, (value & 0xff));
+}
+
+uint16_t readEeprom16(uint8_t pos) 
+{
+  uint16_t hiByte;
+  uint16_t loByte;
+  hiByte = loadState(pos) << 8;
+  pos++;
+  loByte = loadState(pos);
+  return (hiByte | loByte);
+}
+
+
+
+//This function will write a 4 byte (32bit) uint32_t to the eeprom at
+//the specified pos to pos + 3.
+void writeEeprom32(uint8_t pos, uint32_t value)
+{
+	//Decomposition from a uint32_t to 4 bytes by using bitshift.
+	//One = Most significant -> Four = Least significant byte
+	byte four = (value & 0xFF);
+	byte three = ((value >> 8) & 0xFF);
+	byte two = ((value >> 16) & 0xFF);
+	byte one = ((value >> 24) & 0xFF);
+
+	//Write the 4 bytes into the eeprom memory.
+	saveState(pos, four);
+	saveState(pos + 1, three);
+	saveState(pos + 2, two);
+	saveState(pos + 3, one);
+}
+
+uint32_t readEeprom32(uint8_t pos)
+{
+	//Read the 4 bytes from the eeprom memory.
+	uint32_t four = loadState(pos);
+	uint32_t three = loadState(pos + 1);
+	uint32_t two = loadState(pos + 2);
+	uint32_t one = loadState(pos + 3);
+
+	//Return the recomposed uint32_t by using bitshift.
+	return ((four << 0) & 0xFF) + ((three << 8) & 0xFFFF) + ((two << 16) & 0xFFFFFF) + ((one << 24) & 0xFFFFFFFF);
+}  
