@@ -24,10 +24,11 @@
 							unsigned int sensorValue; (vorher nur int)
 							debuglevel bei EEPROM Wert von 255 (also bisher nicht beschrieben) auf 0 setzten und ins EEPROM schreiben
 20181116 Version 2.4.1		neben sendHeartbeat wird der Wert von millis() zum DebugChild als V_VAR4 gesendet (damit sollen sporadische Reboots erkannt werden)
-20221107 Version 3.0		Neuentwicklung um mehr Speicher bei globalen Variablen zu sparen. Obwohl keine Fehler MY_DEBUG angezeigt wurde, war die Kommunikation mit dem Gateway sehr schlecht.
+20221107 Version 3.0-001	Neuentwicklung, um mehr Speicher bei globalen Variablen zu sparen. Obwohl keine Fehler MY_DEBUG angezeigt wurde, war die Kommunikation mit dem Gateway bei 2.4.1 sehr schlecht.
 							Der Node konnte sich nicht registrieren. Ein Gegenversuch, mit einem Minimal-Node auf der selben Hardware lief ohne Probleme.
 							Schlussfolgerung: Es sollten genug Bytes für lokale Variablen zur Verfügung stehen.
 							Anpassugnen auch bei CommonFunctions.h. Es wurden zu viele ungenutzt MyMessage Objekte angelegt.
+20221110 Version 3.02		Optimierungen im Code in Bezug auf FHEM
 
 
 #############################		Settings		###################################
@@ -41,7 +42,7 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 *************************************************/
 
 
-#define SKETCH_VER						"3.0-001"				// Sketch version
+#define SKETCH_VER						"3.02"				// Sketch version
 #define MY_RADIO_RF24
 
 
@@ -351,9 +352,12 @@ void loop()
 		if (flowToZeroCycle >= (uint8_t)MAX_FLOW_TO_ZERO_CYLCE)
 		{	
 			flowToZeroCycle = 0;
-			flow = 0;
-			send(msgDebugReturnString.set(F("Flw0")));
-			send(msgAnalogMeter.setType(V_FLOW).set(flow, 1));
+			if (not(flow == 0.0))//Gateway nicht zuspammen, deshalb flow nur auf 0 setzen, wenn es nicht schon so ist.
+			{
+				flow = 0;
+				send(msgDebugReturnString.set(F("Flw0")));
+				send(msgAnalogMeter.setType(V_FLOW).set(flow, 1));
+			}
 		}
 
 	}
