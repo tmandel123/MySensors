@@ -29,6 +29,9 @@
 							Schlussfolgerung: Es sollten genug Bytes für lokale Variablen zur Verfügung stehen.
 							Anpassugnen auch bei CommonFunctions.h. Es wurden zu viele ungenutzt MyMessage Objekte angelegt.
 20221110 Version 3.02		Optimierungen im Code in Bezug auf FHEM
+20221114 Version 3.03		SEND_WAIT entfernt
+							SEND_FREQUENCY auf 20Sec reduziert
+							V_FLOW mindestens einmal je Stunde übertragen
 
 
 #############################		Settings		###################################
@@ -42,7 +45,7 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 *************************************************/
 
 
-#define SKETCH_VER						"3.02"				// Sketch version
+#define SKETCH_VER						"3.03"				// Sketch version
 #define MY_RADIO_RF24
 
 
@@ -147,13 +150,12 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 
 // Input and output definitions
 #define ANALOG_INPUT_SENSOR					A0					// The analog input you attached your sensor. 
-#define SEND_WAIT							50
 
 // Sonstige Werte
-#define SEND_FREQUENCY						30000				//default: 30000	Minimum time between send (in milliseconds). We don't wnat to spam the gateway.
-#define MAX_HEARTBEAT_CYCLE					10					//default: 10		X * SEND_FREQUENCY
-#define MAX_INTERNALS_UPDATE_CYCLE			120					//default: 120		X * SEND_FREQUENCY, jede Stunde Update senden (Debug, Threshold usw) (120*30Sekunden)
-#define MAX_FLOW_TO_ZERO_CYLCE				4					//default: 4		X * SEND_FREQUENCY, nach 2 Minuten ohne Durchfluss Werte auf 0 setzen
+#define SEND_FREQUENCY						20000				//default: 20000	Minimum time between send (in milliseconds). We don't wnat to spam the gateway.
+#define MAX_HEARTBEAT_CYCLE					15					//default: 15		X * SEND_FREQUENCY
+#define MAX_INTERNALS_UPDATE_CYCLE			180					//default: 180		X * SEND_FREQUENCY, jede Stunde Update senden (Debug, Threshold usw) (120*30Sekunden)
+#define MAX_FLOW_TO_ZERO_CYLCE				6					//default: 6		X * SEND_FREQUENCY, nach 2 Minuten ohne Durchfluss Werte auf 0 setzen
 
 
 #define MAX_CYCLES_LOW_ENERGY				3					//default: 3		nach so vielen Durchläufen 0 Watt anzeigen
@@ -338,6 +340,7 @@ void loop()
 			send(msgNewMeterValue.set(pulseCount));
 			float volume = (float)pulseCount / ((float)PULSE_FACTOR);
 			send(msgAnalogMeter.setType(V_VOLUME).set(volume, (uint8_t)VOLUME_DIGITS));
+			send(msgAnalogMeter.setType(V_FLOW).set(flow, 1));
 
 			send(msgAnalogDebug.setType(V_VAR1).set(readEeprom16(EEPROM_LO_THRESHOLD)));
 			send(msgAnalogDebug.setType(V_VAR2).set(readEeprom16(EEPROM_HI_THRESHOLD)));
