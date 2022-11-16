@@ -3,6 +3,7 @@
 #############################		Versionen		###################################
  
 20221110 Verison 2.01		Versionierung begonnen
+20221114 Verison 2.02		Präprozessoranweisungen für OneWireMaster hinzugefügt
 
 
 
@@ -129,12 +130,13 @@
 // #include <VoltageReference.h>				// https://github.com/rlogiacco/VoltageReference Version 1.2.2
 // #endif
 
-// MyMessage msgOwTemp							(CHILD_OW_TEMP,  				V_TEMP);			//10-17
-// MyMessage msgDebugOWConList					(CHILD_OW_CONNECTED,			V_TEXT);			//18
-// MyMessage msgDebugOWDevCount				(CHILD_OW_DEV_COUNT,			V_TEXT);			//19
-// MyMessage msgOwName							(CHILD_OW_TEMP_NAME,  			V_TEXT);			//20-27
-// MyMessage msgOwResolution					(CHILD_OW_RESOLUTION,  			V_TEXT);			//28
-
+#if MY_NODE_ID > 150 && MY_NODE_ID < 200
+	MyMessage msgOwTemp							(CHILD_OW_TEMP,  				V_TEMP);			//10-17
+	MyMessage msgDebugOWConList					(CHILD_OW_CONNECTED,			V_TEXT);			//18
+	MyMessage msgDebugOWDevCount				(CHILD_OW_DEV_COUNT,			V_TEXT);			//19
+	MyMessage msgOwName							(CHILD_OW_TEMP_NAME,  			V_TEXT);			//20-27
+	MyMessage msgOwResolution					(CHILD_OW_RESOLUTION,  			V_TEXT);			//28
+#endif
 
 // MyMessage msgMultiButton					(CHILD_MULTI_BUTTON,			V_TEXT);			//30
 
