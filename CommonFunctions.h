@@ -4,6 +4,7 @@
  
 20221110 Verison 2.01		Versionierung begonnen
 20221114 Verison 2.02		Präprozessoranweisungen für OneWireMaster hinzugefügt
+20221114 Verison 2.03		msgPowerMeter auf NodeID 100 beschränkt
 
 
 
@@ -140,8 +141,9 @@
 
 // MyMessage msgMultiButton					(CHILD_MULTI_BUTTON,			V_TEXT);			//30
 
-// MyMessage msgPowerMeter						(CHILD_POWER_METER,				V_WATT);			//35
-
+#if MY_NODE_ID > 99 && MY_NODE_ID < 101
+	MyMessage msgPowerMeter						(CHILD_POWER_METER,				V_WATT);			//35
+#endif
 // MyMessage msgServoState						(CHILD_SERVO_STATE,				V_TEXT);			//40
 
 // MyMessage msgDimmerState					(CHILD_SINGLE_LED_DIMMER,		V_DIMMER);			//50
