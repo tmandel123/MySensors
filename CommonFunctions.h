@@ -4,7 +4,7 @@
  
 20221110 Verison 2.01		Versionierung begonnen
 20221114 Verison 2.02		Präprozessoranweisungen für OneWireMaster hinzugefügt
-20221114 Verison 2.03		msgPowerMeter auf NodeID 100 beschränkt
+20221125 Verison 2.03		msgPowerMeter auf NodeID 100 beschränkt
 
 
 
