@@ -9,12 +9,13 @@
 							Anpassugnen für PULSE_LED (geht jetzt sofort bei onPulse an)
 20220927 Version 1.5-008	Anpassungen für Übermittlung von 0 Watt Werten, falls PV-Einspeisung den Zähler stoppt
 20220927 Version 1.5-009	DEBUG_SERIAL(MY_BAUD_RATE) von before() nach preHwInit()
+20221125 Version 1.5-010	PULSE_FACTOR von 1000 auf 10000, onPulse korrigiert und PULSE_FACTOR mit eingebaut
 
 
 *************************************************/
 
 
-#define SKETCH_VER            				"1.5-009"        		// Sketch version
+#define SKETCH_VER            				"1.5-010"        		// Sketch version
 #define SKETCH_NAME           				"EnergyMeter"   		// Optional child sensor name
 
 
@@ -67,7 +68,7 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 
 // ###################   Node Spezifisch   #####################
 
-#define PULSE_FACTOR						1000				// Nummber of blinks per KWH of your meeter
+#define PULSE_FACTOR						10000				// Nummber of blinks per KWH of your meeter
 #define MAX_WATT							12000				// Max watt value to report. This filetrs outliers.
 
 #define EEPROM_DEVICE_DEBUG_LEVEL			0					//8  Bit	Position im Flash
@@ -183,7 +184,7 @@ void setup()
 
 void presentation()
 {
-	mySendSketchInfo();
+	sendSketchInfo(SKETCH_NAME, SKETCH_VER);
 	myPresentation();
 	present(CHILD_POWER_METER, S_POWER, CHILD_POWER_METER_TEXT);
 	// wait(100);
@@ -361,7 +362,7 @@ void onPulse()
 		return;
 	}
 	//3600 seconds per hour = 3600J per pulse i.e. 1 Wh = 3600J therefore, instantaneous power P = 3600 / T where T is the time between the falling edge of each pulse.
-	watt = (3600000.0 / interval); //wegen millis 3600 * 1000 = 3600000.0
+	watt = ((float)(3600000000.0 / PULSE_FACTOR ) / interval ); //wegen millis 3600 * 1000 = 3600000.0
 	lastPulseTime = newPulseTime;
 	pulseCount++;
 	DEBUG_PRINT("onPulse:");
