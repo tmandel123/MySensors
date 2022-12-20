@@ -20,11 +20,12 @@ void loop() {
 	delay(30); 
 	digitalWrite(LED_BUILTIN, LOW);
 
-//	#### Datensatz 1
+
+	// #### Datensatz 1
 	
 	for (unsigned int i = 0; i < HLY_bin_len; ++i) 
 	{
-		Serial.write(HLY_bin1[i]);
+		Serial.write(pgm_read_byte(&HLY_bin1[i]));
 	}
 	
 	digitalWrite(LED_BUILTIN, HIGH); 
@@ -32,11 +33,11 @@ void loop() {
 	digitalWrite(LED_BUILTIN, LOW);
 	delay(1000);
 	
-//	#### Datensatz 1
+	// #### Datensatz 2
 	
 	for (unsigned int i = 0; i < HLY_bin_len; ++i) 
 	{
-		Serial.write(HLY_bin2[i]);
+		Serial.write(pgm_read_byte(&HLY_bin2[i]));
 	}
 	
 	digitalWrite(LED_BUILTIN, HIGH); 
@@ -44,14 +45,31 @@ void loop() {
 	digitalWrite(LED_BUILTIN, LOW);
 	delay(1000);
 
-//	#### Datensatz 3
+	// #### Datensatz 3
 	
 	for (unsigned int i = 0; i < HLY_bin_len; ++i) 
 	{
-		Serial.write(HLY_bin3[i]);
+		Serial.write(pgm_read_byte(&HLY_bin3[i]));
 	}
 	digitalWrite(LED_BUILTIN, HIGH); 
 	delay(30); 
 	digitalWrite(LED_BUILTIN, LOW);
 	delay(1000);
+	
+	
+
+//	#### Einspeisung
+	
+	for (unsigned int i = 0; i < HLY_bin_len; ++i) 
+	{
+		Serial.write(pgm_read_byte(&HLY_Einspeisung[i]));
+	}
+	digitalWrite(LED_BUILTIN, HIGH); 
+	delay(30); 
+	digitalWrite(LED_BUILTIN, LOW);
+	delay(1000);
+	
+	
+	
+	
 }
