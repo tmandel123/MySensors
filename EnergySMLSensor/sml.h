@@ -98,8 +98,16 @@ void smlOBISManufacturer(unsigned char *str, int maxSize);
 void smlOBISByUnit(long long int &wh, signed char &scaler, sml_units_t unit);
 
 // Be aware that double on Arduino UNO is just 32 bit
-void smlOBISWh(double &wh);
-void smlOBISW(double &w);
-void smlOBISVolt(double &v);
+// void smlOBISWh(double &wh);
+// void smlOBISW(double &w);
+// void smlOBISVolt(double &v);
+
+////////////////	Tommys eigene Funktionen, die kein double verwenden, sondern signed long (int32_t für zu Fehlern)
+// double ist bei Arduino wohl auch nur 32 bit breit, funktioniert aber nicht zusammen mit MySensors
+
+void smlOBISWh(signed long &wh);
+void smlOBISW(signed long &w);
+void smlOBISVolt(signed long &v);
+void smlPow(signed long &val, signed char &scaler);
 
 #endif
