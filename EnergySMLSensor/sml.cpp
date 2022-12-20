@@ -317,27 +317,12 @@ void smlOBISManufacturer(unsigned char *str, int maxSize)
  // Serial.write(listBuffer,(maxSize - 1));
 }
 
-void smlPow(double &val, signed char &scaler)
-{
-  //Serial.print("smlPow: ");
-  //Serial.println(scaler);
-  if (scaler < 0) {
-    while (scaler++) {
-      val /= 10;
-    }
-  }
-  else {
-    while (scaler--) {
-      val *= 10;
-    }
-  }
-}
 
 void smlOBISByUnit(long long int &val, signed char &scaler, sml_units_t unit)
 {
   unsigned char i = 0, pos = 0, size = 0, y = 0, skip = 0;
   sml_states_t type;
-  val = -1; /* unknown or error */
+  val = -1; // unknown or error 
   while (i < listPos) {
     pos++;
     size = (int)listBuffer[i++];
@@ -354,7 +339,7 @@ void smlOBISByUnit(long long int &val, signed char &scaler, sml_units_t unit)
       size = 0;
     }
     if (pos == 4 && listBuffer[i] != unit) {
-      /* return unknown (-1) if unit does not match */
+      // return unknown (-1) if unit does not match 
       return;
     }
     if (pos == 5) {
@@ -373,6 +358,8 @@ void smlOBISByUnit(long long int &val, signed char &scaler, sml_units_t unit)
     i += size;
   }
 }
+
+/**
 
 void smlOBISWh(double &wh)
 {
@@ -401,3 +388,71 @@ void smlOBISVolt(double &v)
   v = val;
   smlPow(v, sc);
 }
+
+
+
+void smlPow(double &val, signed char &scaler)
+{
+  // Serial.print("smlPow: ");
+  // Serial.println(scaler);
+  if (scaler < 0) {
+    while (scaler++) {
+      val /= 10;
+    }
+  }
+  else {
+    while (scaler--) {
+      val *= 10;
+    }
+  }
+}
+*/
+
+
+
+////////////////	Tommys eigene Funktionen, die kein double verwenden, sondern signed long (int32_t für zu Fehlern)
+
+void smlPow(signed long &val, signed char &scaler)
+{
+  //Serial.print("smlPow: ");
+  //Serial.println(scaler);
+  if (scaler < 0) {
+    while (scaler++) {
+      val /= 10;
+    }
+  }
+  else {
+    while (scaler--) {
+      val *= 10;
+    }
+  }
+}
+
+void smlOBISWh(signed long &wh)
+{
+  //Serial.print(F("smlOBISWh:"));
+  long long int val;
+  smlOBISByUnit(val, sc, SML_WATT_HOUR);
+  wh = val;
+  smlPow(wh, sc);
+  //Serial.println(wh);
+}
+
+void smlOBISW(signed long &w)
+{
+	//Serial.print(F("smlOBISW:"));
+  long long int val;
+  smlOBISByUnit(val, sc, SML_WATT);
+  w = val;
+  smlPow(w, sc);
+  //Serial.println(w);
+}
+
+void smlOBISVolt(signed long &v)
+{
+  long long int val;
+  smlOBISByUnit(val, sc, SML_VOLT);
+  v = val;
+  // smlPow(v, sc);
+}
+
