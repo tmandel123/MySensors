@@ -77,6 +77,9 @@
 #define CHILD_POWER_METER 					35
 #define CHILD_POWER_METER_TEXT				(F("PowerMeter"))
 
+#define CHILD_POWER_PHASE 					36
+#define CHILD_POWER_PHASE_TEXT				(F("PowerPhase"))
+
 #define CHILD_SERVO_STATE					40
 #define CHILD_SERVO_STATE_TEXT				(F("Servo_State"))
 
@@ -141,8 +144,9 @@
 
 // MyMessage msgMultiButton					(CHILD_MULTI_BUTTON,			V_TEXT);			//30
 
-#if MY_NODE_ID > 99 && MY_NODE_ID < 101
+#if ((MY_NODE_ID > 99 && MY_NODE_ID < 101) || (MY_NODE_ID > 102 && MY_NODE_ID < 110))
 	MyMessage msgPowerMeter						(CHILD_POWER_METER,				V_WATT);			//35
+	MyMessage msgPowerPhase						(CHILD_POWER_PHASE,				V_VAR1);			//36
 #endif
 // MyMessage msgServoState						(CHILD_SERVO_STATE,				V_TEXT);			//40
 
@@ -151,7 +155,7 @@
 
 MyMessage msgDebugLevel						(CHILD_DEBUG_LEVEL,				V_TEXT);			//70
 
-#if MY_NODE_ID > 99 && MY_NODE_ID < 110
+#if ((MY_NODE_ID > 99 && MY_NODE_ID < 101) || (MY_NODE_ID > 102 && MY_NODE_ID < 110))
 	MyMessage msgNewMeterValue					(CHILD_NEW_METER_VALUE,			V_TEXT);			//71
 #endif
 
