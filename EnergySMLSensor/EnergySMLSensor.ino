@@ -10,16 +10,14 @@
 20220927 Version 1.5-008	Anpassungen für Übermittlung von 0 Watt Werten, falls PV-Einspeisung den Zähler stoppt
 20220927 Version 1.5-009	DEBUG_SERIAL(MY_BAUD_RATE) von before() nach preHwInit()
 20221125 Version 1.5-010	PULSE_FACTOR von 1000 auf 10000, onPulse korrigiert und PULSE_FACTOR mit eingebaut
-20221125 Version 2.0-001	Umstellung auf SML Daten (D0) beim Stromzähler -> Wichtig: MY_BAUD_RATE muss 9600 sein, sowohl für RX (vom Zähler) als auch TX (zur Konsole)
+20221221 Version 2.0-001	Umstellung auf SML Daten (D0) beim Stromzähler -> Wichtig: MY_BAUD_RATE muss 9600 sein, sowohl für RX (vom Zähler) als auch TX (zur Konsole)
+20221222 Version 2.0-002	SEND_WAIT eingeführt, weil sonst Übertragungen über einen Repeater verloren gehen
 
 *************************************************/
 
 
-#define SKETCH_VER            				"2.0-001"        		// Sketch version
+#define SKETCH_VER            				"2.0-002"        		// Sketch version
 #define SKETCH_NAME           				"EnergyMeter"   		// Optional child sensor name
-
-
-
 
 
 //	###################   Debugging   #####################
@@ -31,7 +29,7 @@
 // #define MY_SIGNAL_REPORT_ENABLED
 
 //	###################   Features   #####################
-#define MY_REPEATER_FEATURE
+// #define MY_REPEATER_FEATURE
 // #define MY_GATEWAY_SERIAL
 // #define MY_INCLUSION_MODE_FEATURE
 // #define MY_INCLUSION_BUTTON_FEATURE
@@ -81,13 +79,14 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 
 #define HEARTBEAT_INTERVAL					300000				//default: 300000
 #define INTERNALS_UPDATE_INTERVAL			3600000				//default: 3600000	jede Stunde Update senden (Debug, Threshold usw)
-#define SEND_FREQUENCY						5000				//default: 30000	Minimum time between send (in milliseconds). We don't wnat to spam the gateway.
+#define SEND_FREQUENCY						30000				//default: 30000	Minimum time between send (in milliseconds). We don't wnat to spam the gateway.
 #define WAIT_TIME							2000				//default: 2000		Wartezeit am Ende von loop(), wait verarbeitet eingehende Nachrichten
-// #define MAX_CYCLES_LOW_ENERGY				3					//default: 3		nach so vielen Durchläufen 0 Watt anzeigen
+
 
 
 #define MY_BAUD_RATE						(9600ul)			//DEBUG_PRINT nur mit dieser Datenrate ausgeben, weil Hardware Serial auch zum Einlesen benötigt wird
-// #define LED 								LED_BUILTIN
+
+
 /** Werte für Debug überschreiben **/
 // #ifdef SER_DEBUG
 
@@ -107,37 +106,27 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 #define WITH_NODE_INFO						// übermittel NodeID, ParentNodeID
 
 
-
 #include "sml.h"
 // #include <stdio.h>
 
 #include <MySensors.h>
 #include "C:\_Lokale_Daten_ungesichert\Arduino\MySensors\CommonFunctions.h" //muss nach allen anderen #defines stehen
 
-
-
 // volatile bool 		informGW = false;
-bool 				firstLoop = true;
-
-uint8_t 			debugLevel = 0;								// sets the debug level, 0 = basic info. 1 = streaming level info. 2 = sent level streaming to gateway.
+bool 				firstLoop 			= true;
+uint8_t 			debugLevel 			= 0;								// sets the debug level, 0 = basic info. 1 = streaming level info. 2 = sent level streaming to gateway.
 uint32_t 			lastSend;
-uint32_t 			lastHeartBeat = 0;
+uint32_t 			lastHeartBeat 		= 0;
 uint32_t 			lastInternalsUpdate = 0; 
+uint32_t 			lastPulseTime 		= 0;
+signed long 		PowerAll			= 0;
+signed long 		PowerL1				= 0;
+signed long 		PowerL2				= 0;
+signed long 		PowerL3				= 0;
+signed long 		SumWhConsum			= -2;
+signed long 		SumWhFeed			= -2;
 
-uint32_t 			lastPulseTime = 0;
-
-
-signed long 		PowerAll		= 0;
-signed long 		PowerL1			= 0;
-signed long 		PowerL2			= 0;
-signed long 		PowerL3			= 0;
-signed long 		SumWhConsum		= -2;
-signed long 		SumWhFeed		= -2;
-
-// AltSoftSerial 		inputSerial;
 sml_states_t 		currentState;
-
-
 
 typedef struct {
   const unsigned char OBIS[6];
@@ -163,7 +152,6 @@ void fCounterSumIn()  {
 void fCounterSumOut() {
   smlOBISWh(SumWhFeed);
 }
-
 
 OBISHandler OBISHandlers[] = {
   {{0x01, 0x00, 0x10, 0x07, 0x00, 0xff}, &fPowerAll},
@@ -191,16 +179,7 @@ void readByte(unsigned char currentChar)
 
 void preHwInit() //kein serieller Output 
 {
-	//Serielles Interface nur setzten, falls nicht schon von MySensors Framework erledledigt
-	// #if defined SER_DEBUG
-		// DEBUG_SERIAL(MY_BAUD_RATE);	// MY_BAUD_RATE from MyConfig.h 115200ul, gehört nach preHwInit. Falls in before(), friert der Arduino ein
-		// delay(150);
-		// DEBUG_PRINTLN("starting serial interface with debugging");
-	// #else
-		// Serial.begin(MY_BAUD_RATE);
-		// delay(150);
-		// Serial.println(F("starting serial interface without debugging"));
-	// #endif
+
 }
 
 void before() 
@@ -214,8 +193,6 @@ void before()
 		Serial.begin(MY_BAUD_RATE);
 		Serial.println(F("starting serial interface without debugging"));
 	#endif
-
-	
 	
 	DEBUG_PRINTLN("before");
 	
@@ -303,23 +280,26 @@ void loop()
 		DEBUG_PRINTLN(SumWhFeed);
 		
 		send(msgPowerMeter.setType(V_WATT).set(PowerAll));  // Send watt value to gw	
+		wait(SEND_WAIT);
 		send(msgPowerMeter.setType(V_VAR).set(SumWhConsum));  // Send watt value to gw	
+		wait(SEND_WAIT);
 		send(msgPowerMeter.setType(V_VAR1).set(SumWhFeed));  // Send watt value to gw	
-		wait(100);
+		wait(SEND_WAIT);
 		// 10_MYSENSORS_DEVICE.pm S_POWER => { receives => [V_VAR1], sends => [V_WATT,V_KWH,V_VAR,V_VA,V_POWER_FACTOR,V_VAR1] }, # Power measuring device, like power meters	
-		send(msgPowerPhase.setType(V_VAR1).set(PowerL1));  
-		send(msgPowerPhase.setType(V_VAR2).set(PowerL2));  
+		send(msgPowerPhase.setType(V_VAR1).set(PowerL1));
+		wait(SEND_WAIT);
+		send(msgPowerPhase.setType(V_VAR2).set(PowerL2)); 
+		wait(SEND_WAIT);
 		send(msgPowerPhase.setType(V_VAR3).set(PowerL3));  
+		wait(SEND_WAIT);
 	
 		float kwh = ((float)SumWhConsum/((float)PULSE_FACTOR));
 		send(msgPowerMeter.setType(V_KWH).set(kwh, 3));  // Send kwh value to gw
+		wait(SEND_WAIT);
 			
 		lastPulseTime = currentTime;
 		currentState = SML_UNEXPECTED;
-		
-
 	}
-	
 	
 	if ((currentTime - lastHeartBeat) > (uint32_t)HEARTBEAT_INTERVAL)
 	{
@@ -334,8 +314,6 @@ void loop()
 		lastInternalsUpdate = currentTime;
 		send(msgDebugLevel.set(debugLevel));
 	}
-	
-	// wait(WAIT_TIME);
 }
 
 void receive(const MyMessage &message)
@@ -377,8 +355,4 @@ void receive(const MyMessage &message)
 		}
 	}
 }
-
-
-
-
 
