@@ -5,6 +5,7 @@
 20221110 Verison 2.01		Versionierung begonnen
 20221114 Verison 2.02		Präprozessoranweisungen für OneWireMaster hinzugefügt
 20221125 Verison 2.03		msgPowerMeter auf NodeID 100 beschränkt
+20221125 Verison 2.04		wait(SEND_WAIT) nach SEND_WAIT eingeführt, weil sonst Übertragungen über einen Repeater verloren gehen  und zu hohen txERR führen
 
 
 
@@ -58,6 +59,7 @@
 #define PULSE_LED							8					//LED_BUILDIN geht nicht, weil Pin 13 für SCK belegt ist
 #define LED_ON								LOW					//Gemeinsamer Plus-Pol
 #define LED_OFF								HIGH				//Gemeinsamer Plus-Pol
+#define SEND_WAIT							100					//default:	100		Pause in MS zwischen zwei Sende-Vorgängen (ohne Pause, wird sonst der Repeater überlastet, bei mehr als 3 Sendevorängen)
 
 #define CHILD_OW_TEMP						10
 #define	CHILD_OW_TEMP_TEXT					("OW_Temp")			//flashhelper is not working with functions in OneWireMaster.ino
@@ -205,7 +207,7 @@ void myPresentation()
 	NodePresented = true;
 	present(CHILD_COMPILEDATE_NODE, 	S_INFO,				CHILD_COMPILEDATE_NODE_TEXT);
 	// present(CHILD_CPU_TEMPERATURE, 		S_INFO,				CHILD_CPU_TEMPERATURE_TEXT);
-	
+	wait(SEND_WAIT);
 	#ifdef WITH_NODE_INFO
 		present(CHILD_PASSIVE_NODE, 		S_INFO,				CHILD_PASSIVE_NODE_TEXT);
 		present(CHILD_PARENT_NODE, 			S_INFO,				CHILD_PARENT_NODE_TEXT);
@@ -214,26 +216,33 @@ void myPresentation()
 
 	#ifdef WITH_RF24_INFO
 		present(CHILD_TX_RSSI, 				S_INFO, 			CHILD_TX_RSSI_TEXT);
+		wait(SEND_WAIT);
 		present(CHILD_RF24_PA_LEVEL, 		S_INFO, 			CHILD_RF24_PA_LEVEL_TEXT);
+		wait(SEND_WAIT);
 		present(CHILD_RF24_CHANNEL, 		S_INFO,				CHILD_RF24_CHANNEL_TEXT);
 	#endif
 	
 	present(CHILD_DEBUG_LEVEL,	 		S_INFO,				CHILD_DEBUG_LEVEL_TEXT);
+	wait(SEND_WAIT);
 	present(CHILD_DEBUG_RETURN, 		S_INFO,				CHILD_DEBUG_RETURN_TEXT);
 
 	
 #if MY_NODE_ID > 150 && MY_NODE_ID < 200
 	present(CHILD_OW_CONNECTED, 		S_INFO, 			CHILD_OW_CONNECTED_TEXT);		//OneWireMaster only
+	wait(SEND_WAIT);
 	present(CHILD_OW_DEV_COUNT, 		S_INFO, 			CHILD_OW_DEV_COUNT_TEXT);		//OneWireMaster only
 #endif
 
 #if !defined WITH_BATTERY
 	present(CHILD_HWTIME, 				S_INFO, 			CHILD_HWTIME_TEXT);
+	wait(SEND_WAIT);
 #endif
 
 #ifdef MY_ECHO_NODE
 	present(CHILD_ECHO_TIMESTAMP, 		S_INFO,				CHILD_ECHO_TIMESTAMP_TEXT);
+	wait(SEND_WAIT);
 	present(CHILD_ECHO_RUNTIME, 		S_INFO,				CHILD_ECHO_RUNTIME_TEXT);
+	wait(SEND_WAIT);
 	present(CHILD_PACKET_RATIO, 		S_INFO,				CHILD_PACKET_RATIO_TEXT);
 #endif
 
@@ -248,6 +257,7 @@ void myPresentation()
 
 #ifdef MY_INDICATION_HANDLER
 	present(CHILD_TX_OK, 				S_INFO,				CHILD_TX_OK_TEXT);
+	wait(SEND_WAIT);
 	present(CHILD_TX_ERR, 				S_INFO,				CHILD_TX_ERR_TEXT);
 #endif
 	
@@ -293,6 +303,7 @@ void myHeartBeatLoop()
 			uint8_t sec = currentSecs % 60; 
 			sprintf(buffer, "%d %02d:%02d:%02d",day,hour,min,sec);
 			send(msgHwTime.set(buffer));
+			wait(SEND_WAIT);
 			// DEBUG_PRINT("HWTIME: ");
 			// DEBUG_PRINTLN(buffer);
 		#endif
@@ -303,8 +314,11 @@ void myHeartBeatLoop()
 		nowRSSI=RF24_getSendingRSSI();
 		avgRSSI=((avgRSSI*7)+(nowRSSI))/8;
 		send(msgSendingRSSI.set(avgRSSI));
+		wait(SEND_WAIT);
 		send(msgPaLevel.set(PA_LEVEL_TEXT));
+		wait(SEND_WAIT);
 		send(msgRFChannel.set(MY_RF24_CHANNEL));
+		wait(SEND_WAIT);
 	#endif
 	
 	#ifdef WITH_NODE_INFO
@@ -318,6 +332,7 @@ void myHeartBeatLoop()
 		#else
 			send(msgParentNode.set("fixed"));
 		#endif	
+		wait(SEND_WAIT);
 	#endif
 	
 	send(msgCompileDate.set(F(__DATE__ " " __TIME__)));				//FHEM: text_CompileDate	Jan 21 2022 16:03:17
@@ -330,7 +345,9 @@ void myHeartBeatLoop()
 		DEBUG_PRINT(F(" txERR: "));
 		DEBUG_PRINTLN(txERR);
 		send(msgTxOK.set(txOK));
+		wait(SEND_WAIT);
 		send(msgTxErr.set(txERR));
+		wait(SEND_WAIT);
 		txOK=0;
 		txERR=0;
 	#endif
