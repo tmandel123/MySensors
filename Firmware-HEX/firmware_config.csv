@@ -1,0 +1,6 @@
+Type,Name,Version,File,Comments
+100,EnergyMeterPulseSensor,1,100_EnergySMLSensor.ino.hex,Strom
+101,GasWaterMeterA0Sensor,1,101_GasWaterMeterA0Sensor.ino.hex,Wasser
+102,GasWaterMeterA0Sensor,1,102_GasWaterMeterA0Sensor.ino.hex,Gas
+103,EnergySMLSensor,1,103_EnergySMLSensor.ino.hex,Strom
+150,OneWireMaster,1,150_OneWireMaster.ino.hex,1.7-004
