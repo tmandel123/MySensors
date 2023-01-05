@@ -12,11 +12,13 @@
 20221125 Version 1.5-010	PULSE_FACTOR von 1000 auf 10000, onPulse korrigiert und PULSE_FACTOR mit eingebaut
 20221221 Version 2.0-001	Umstellung auf SML Daten (D0) beim Stromzähler -> Wichtig: MY_BAUD_RATE muss 9600 sein, sowohl für RX (vom Zähler) als auch TX (zur Konsole)
 20221222 Version 2.0-002	SEND_WAIT eingeführt, weil sonst Übertragungen über einen Repeater verloren gehen
+20230103 Version 2.0-003	Über Kanal msgDebugReturnString wird mitgeteilt, falls der Sensor keine Daten ausliestausliest. Power wird als "---" übermittelt
+20230105 Version 2.0-004	bei msgPowerMeter.setType V_VAR1 und V_VAR vertauscht um kompatibel mit EnergyMeterPulseSensor.ino zu bleiben
 
 *************************************************/
 
 
-#define SKETCH_VER            				"2.0-002"        		// Sketch version
+#define SKETCH_VER            				"2.0-004"        		// Sketch version
 #define SKETCH_NAME           				"EnergyMeter"   		// Optional child sensor name
 
 
@@ -29,7 +31,7 @@
 // #define MY_SIGNAL_REPORT_ENABLED
 
 //	###################   Features   #####################
-// #define MY_REPEATER_FEATURE
+#define MY_REPEATER_FEATURE
 // #define MY_GATEWAY_SERIAL
 // #define MY_INCLUSION_MODE_FEATURE
 // #define MY_INCLUSION_BUTTON_FEATURE
@@ -54,7 +56,7 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 // #define MY_TRANSPORT_SANITY_CHECK			//enable regular transport sanity checks -> wirkt nur bei Gateway oder Repeater, ist dort per default aktiviert
 
 
-#define MY_NODE_ID 							103
+#define MY_NODE_ID 							100
 // #define MY_PARENT_NODE_ID 					100
 // #define MY_PARENT_NODE_IS_STATIC
 // #define MY_PASSIVE_NODE
@@ -80,6 +82,7 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 #define HEARTBEAT_INTERVAL					300000				//default: 300000
 #define INTERNALS_UPDATE_INTERVAL			3600000				//default: 3600000	jede Stunde Update senden (Debug, Threshold usw)
 #define SEND_FREQUENCY						30000				//default: 30000	Minimum time between send (in milliseconds). We don't wnat to spam the gateway.
+#define SEND_ERROR_TIME						180000				//default: 180000	Alle 3 Minuten warnen
 #define WAIT_TIME							2000				//default: 2000		Wartezeit am Ende von loop(), wait verarbeitet eingehende Nachrichten
 
 
@@ -234,7 +237,7 @@ void loop()
 {
 	uint32_t currentTime = millis();
 	
-	if ((currentTime - lastPulseTime) >  SEND_FREQUENCY)
+	if ((currentTime - lastPulseTime) >  (uint32_t)SEND_FREQUENCY)
 	{
 		unsigned char incomingByte;
 
@@ -281,9 +284,9 @@ void loop()
 		
 		send(msgPowerMeter.setType(V_WATT).set(PowerAll));  // Send watt value to gw	
 		wait(SEND_WAIT);
-		send(msgPowerMeter.setType(V_VAR).set(SumWhConsum));  // Send watt value to gw	
+		send(msgPowerMeter.setType(V_VAR1).set(SumWhConsum));  // Send watt value to gw	
 		wait(SEND_WAIT);
-		send(msgPowerMeter.setType(V_VAR1).set(SumWhFeed));  // Send watt value to gw	
+		send(msgPowerMeter.setType(V_VAR).set(SumWhFeed));  // Send watt value to gw	
 		wait(SEND_WAIT);
 		// 10_MYSENSORS_DEVICE.pm S_POWER => { receives => [V_VAR1], sends => [V_WATT,V_KWH,V_VAR,V_VA,V_POWER_FACTOR,V_VAR1] }, # Power measuring device, like power meters	
 		send(msgPowerPhase.setType(V_VAR1).set(PowerL1));
@@ -314,6 +317,16 @@ void loop()
 		lastInternalsUpdate = currentTime;
 		send(msgDebugLevel.set(debugLevel));
 	}
+
+	if ((currentTime - lastPulseTime) >  (uint32_t)SEND_ERROR_TIME) // vermutlich ist der Sensor abgefallen
+	{
+		lastPulseTime = currentTime;
+		send(msgPowerMeter.setType(V_WATT).set(F("---")));
+		wait(SEND_WAIT);
+		send(msgDebugReturnString.set(F("Sensor Offline")));
+	}
+	
+	
 }
 
 void receive(const MyMessage &message)
@@ -329,12 +342,12 @@ void receive(const MyMessage &message)
 				debugLevel = message.getByte();
 				if (debugLevel == 0)
 				{
-					send(msgDebugReturnString.set(F("dbg3 0")));
+					send(msgDebugReturnString.set(F("dbg0")));
 					//ToDo: noch nicht implementiert. debugLevel Variable wird auch nicht im EEPROM gespeichert
 				}	
 				if (debugLevel == 1)
 				{
-					send(msgDebugReturnString.set(F("dbg3 1")));
+					send(msgDebugReturnString.set(F("dbg1")));
 				}
 				if (debugLevel == 3)
 				{
