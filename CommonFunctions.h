@@ -6,6 +6,7 @@
 20221114 Verison 2.02		Präprozessoranweisungen für OneWireMaster hinzugefügt
 20221125 Verison 2.03		msgPowerMeter auf NodeID 100 beschränkt
 20221125 Verison 2.04		wait(SEND_WAIT) nach SEND_WAIT eingeführt, weil sonst Übertragungen über einen Repeater verloren gehen  und zu hohen txERR führen
+20230120 Verison 2.05		LED_ON nach MY_LED_ON wegen Namensgleichheit mit MySensors Bibliothek
 
 
 
@@ -57,8 +58,8 @@
 #define LED_PWM_PIN							5
 #define LED_DIGITAL_PIN						5
 #define PULSE_LED							8					//LED_BUILDIN geht nicht, weil Pin 13 für SCK belegt ist
-#define LED_ON								LOW					//Gemeinsamer Plus-Pol
-#define LED_OFF								HIGH				//Gemeinsamer Plus-Pol
+#define MY_LED_ON							LOW					//Gemeinsamer Plus-Pol
+#define MY_LED_OFF							HIGH				//Gemeinsamer Plus-Pol
 #define SEND_WAIT							100					//default:	100		Pause in MS zwischen zwei Sende-Vorgängen (ohne Pause, wird sonst der Repeater überlastet, bei mehr als 3 Sendevorängen)
 
 #define CHILD_OW_TEMP						10
