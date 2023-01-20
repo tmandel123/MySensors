@@ -1,6 +1,23 @@
+/**
+
+#############################		Versionen		###################################
+ 
+20221115 Verison 2.01		Versionierung begonnen
+							Präprozessoranweisungen für OneWireMaster hinzugefügt
+
+
+
+
+*/
+
+// ###################   Node Spezifisch   #####################
+#define SKETCH_VER            				"2.01"        			// Sketch version
+#define SKETCH_NAME           				"OneWireMaster"   		// Optional child sensor name
+
 //	###################   Debugging   #####################
-// #define MY_DEBUG
-// #define SER_DEBUG
+#define MY_DEBUG											//Output kann im LogParser analysiert werden https://www.mysensors.org/build/parser
+#define SER_DEBUG											// aus CommonFunctions.h für eigenes DEBUG_PRINT
+#define MY_SPECIAL_DEBUG									// für Extended Debug in FHEM
 // #define MY_DEBUG_VERBOSE_RF24								//Testen, welche zusätzlichen Infos angezeigt werden
 // #define MY_SPLASH_SCREEN_DISABLED
 // #define MY_SIGNAL_REPORT_ENABLED
@@ -32,22 +49,19 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 // #define MY_RF24_CE_PIN 						10 				//nur für RF-Nano verwenden
 // #define MY_RF24_CS_PIN 						9				//nur für RF-Nano verwenden
 // #define MY_RF24_DATARATE 					RF24_1MBPS		//nur verwenden, wenn mindestens 1 RF-Nano im Netzwerk eingebucht werden soll
-// #define MY_RF24_CHANNEL 					96
-// #define MY_TRANSPORT_WAIT_READY_MS 			(5000ul)
-//#define MY_TRANSPORT_SANITY_CHECK
+#define MY_RF24_CHANNEL 					96
+#define MY_TRANSPORT_WAIT_READY_MS 			(5000ul)
+// #define MY_TRANSPORT_SANITY_CHECK			//enable regular transport sanity checks -> wirkt nur bei Gateway oder Repeater, ist dort per default aktiviert
 
 // #define MY_NODE_ID 							150
-// #define MY_NODE_ID 							180		//Test
+#define MY_NODE_ID 							180		//Test
 // #define MY_NODE_ID 							181			//Teichwasser Batterie Sensor
-#define MY_NODE_ID 							182			//Gartenhaus Temperatur Sensors
+// #define MY_NODE_ID 							182			//Gartenhaus Temperatur Sensors
 #define MY_PARENT_NODE_ID 					0		//without this the node broadcasts everything to parent 255 (dont know what happens, if 2 repeater receive this at the same time)
 // #define MY_PARENT_NODE_IS_STATIC
-#define MY_PASSIVE_NODE
+// #define MY_PASSIVE_NODE										//default: deaktiviert -> Nur bei Batteriesensoren sillvoll, die im Grenzbereich für den Empfang liegen
 
 
-// ###################   Node Spezifisch   #####################
-#define SKETCH_VER            				"1.7-009"        			// Sketch version
-#define SKETCH_NAME           				"OneWireMaster"   		// Optional child sensor name
 
 // #define HEARTBEAT_INTERVAL        			600000        //wird bei OneWireMaster nicht verwendet. Stattdessen wird in loop() als letztes wait SLEEP_TIME aufgerufen
 
@@ -55,9 +69,8 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 #define ONE_WIRE_BUS 4 // Pin where dallas sensor is connected 
 
 #define OW_RESOLUTION						12
-#define SLEEP_TIME							600000
-// #define SLEEP_TIME							10000
-#define MAX_ATTACHED_DS18B20      			8							//mehr als 8 funktioniert nicht mit den vorhandenen Methoden
+#define SLEEP_TIME							600000				//default:	600000
+#define MAX_ATTACHED_DS18B20      			8					//mehr als 8 funktioniert nicht mit den vorhandenen Methoden
 
 #define EEPROM_DEVICE_NAME_LENGTH   		8
 #define EEPROM_DEVICE_ID_LENGTH     		8
@@ -73,8 +86,13 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 #define MAX_DEBUG_LEVEL         			9
 
 
+// ###################   Allgemeine MySensors Funktionen aus CommonFunctions.h (erhöht den Speicherverbrauch   #####################
 
-#define	WITH_BATTERY						//DS18B20 Sensoren funktionieren nicht mit weniger als 2,5V, eigentlich müsste OneWireMaster mit 5V und Netzteil betriebern werden
+// #define	WITH_BATTERY						//DS18B20 Sensoren funktionieren nicht mit weniger als 2,5V, eigentlich müsste OneWireMaster mit 5V und Netzteil betriebern werden
+#define WITH_HWTIME
+#define WITH_RF24_INFO						// übermittel RSSI, PA_Level, RF_Channel
+#define WITH_NODE_INFO						// übermittel NodeID, ParentNodeID
+
 
 #include <MySensors.h>
 #include <DallasTemperature.h>	// https://github.com/milesburton/Arduino-Temperature-Control-Library Version 3.8.0
@@ -130,8 +148,7 @@ void before()
 	
 	// Startup up the OneWire library
 	sensors.begin();
-	vRef.begin();
-	
+
 	#ifdef SER_DEBUG
 		showEEpromHex();
 		showEEpromChar();
@@ -157,8 +174,8 @@ void presentation()
 	char ChildTextName[sizeof(CHILD_OW_TEMP_NAME_TEXT)+1]=CHILD_OW_TEMP_NAME_TEXT;
 	char SendString[25] = ""; //mehr als 25 Zeichen werden nicht übertragen
 	
-	mySendSketchInfo();
-	myPresentation();
+	sendSketchInfo(SKETCH_NAME, SKETCH_VER);
+	
 	present(CHILD_OW_CONNECTED, 		S_INFO, 		CHILD_OW_CONNECTED_TEXT);
 	present(CHILD_OW_DEV_COUNT, 		S_INFO, 		CHILD_OW_DEV_COUNT_TEXT);
 	present(CHILD_OW_RESOLUTION,		S_INFO,			CHILD_OW_RESOLUTION_TEXT);
@@ -174,11 +191,11 @@ void presentation()
 			
 		}
 	}
+	myPresentation();
 }
 
 void loop()
 {
-	sendHeartbeat();  		//MySensors Funktion	
 	myHeartBeatLoop();		//Eigene Funktion aus CommonFunctions.h
 	sortOwAdresses();
 	
@@ -186,8 +203,10 @@ void loop()
 	//int16_t conversionTime = sensors.millisToWaitForConversion(sensors.getResolution());
 	
 	#ifdef WITH_BATTERY
+		DEBUG_PRINTLN(F("smartSleep 750"));
 		smartSleep(750);//conversionTime usually is 750 ms 
 	#else
+		DEBUG_PRINTLN(F("wait 750"));
 		wait(750);//conversionTime usually is 750 ms 
 	#endif
 	if (DevCheckSum != DevLastCheckSum)	//New Devices on OW Bus have to be presented
@@ -230,10 +249,13 @@ void loop()
 	send(msgDebugOWConList.set(cThermoKnown));
 	send(msgOwResolution.set(OW_RESOLUTION));
 
-	#ifdef WITH_BATTERY	
-		// BatteryVRef();//wird jetzt mit myHeartBeatLoop übermittelt; ToDo: prüfen, ob die ermittelte Spannung korrekt ist 
+	#ifdef WITH_BATTERY
+		DEBUG_PRINT(F("smartSleep "));
+		DEBUG_PRINTLN(SLEEP_TIME);
 		smartSleep((uint32_t)SLEEP_TIME);
 	#else
+		DEBUG_PRINT(F("wait "));
+		DEBUG_PRINTLN(SLEEP_TIME);
 		wait((uint32_t)SLEEP_TIME);
 	#endif
 
