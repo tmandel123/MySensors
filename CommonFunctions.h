@@ -7,6 +7,7 @@
 20221125 Verison 2.03		msgPowerMeter auf NodeID 100 beschränkt
 20221125 Verison 2.04		wait(SEND_WAIT) nach SEND_WAIT eingeführt, weil sonst Übertragungen über einen Repeater verloren gehen  und zu hohen txERR führen
 20230120 Verison 2.05		LED_ON nach MY_LED_ON wegen Namensgleichheit mit MySensors Bibliothek
+20230123 Verison 2.06		#if MY_NODE_ID >= 150 ... (vorher war nur > 150)
 
 
 
@@ -137,7 +138,7 @@
 // #include <VoltageReference.h>				// https://github.com/rlogiacco/VoltageReference Version 1.2.2
 // #endif
 
-#if MY_NODE_ID > 150 && MY_NODE_ID < 200
+#if MY_NODE_ID >= 150 && MY_NODE_ID < 200
 	MyMessage msgOwTemp							(CHILD_OW_TEMP,  				V_TEMP);			//10-17
 	MyMessage msgDebugOWConList					(CHILD_OW_CONNECTED,			V_TEXT);			//18
 	MyMessage msgDebugOWDevCount				(CHILD_OW_DEV_COUNT,			V_TEXT);			//19
