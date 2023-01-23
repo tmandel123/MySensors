@@ -5,17 +5,17 @@
 20221115 Verison 2.01		Versionierung begonnen
 							Präprozessoranweisungen für OneWireMaster hinzugefügt
 
-
-
-
 */
 
-// ###################   Node Spezifisch   #####################
+
+
 #define SKETCH_VER            				"2.01"        			// Sketch version
 #define SKETCH_NAME           				"OneWireMaster"   		// Optional child sensor name
 
+
+
 //	###################   Debugging   #####################
-#define MY_DEBUG											//Output kann im LogParser analysiert werden https://www.mysensors.org/build/parser
+// #define MY_DEBUG											//Output kann im LogParser analysiert werden https://www.mysensors.org/build/parser
 #define SER_DEBUG											// aus CommonFunctions.h für eigenes DEBUG_PRINT
 #define MY_SPECIAL_DEBUG									// für Extended Debug in FHEM
 // #define MY_DEBUG_VERBOSE_RF24								//Testen, welche zusätzlichen Infos angezeigt werden
@@ -49,19 +49,24 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 // #define MY_RF24_CE_PIN 						10 				//nur für RF-Nano verwenden
 // #define MY_RF24_CS_PIN 						9				//nur für RF-Nano verwenden
 // #define MY_RF24_DATARATE 					RF24_1MBPS		//nur verwenden, wenn mindestens 1 RF-Nano im Netzwerk eingebucht werden soll
+
 #define MY_RF24_CHANNEL 					96
 #define MY_TRANSPORT_WAIT_READY_MS 			(5000ul)
 // #define MY_TRANSPORT_SANITY_CHECK			//enable regular transport sanity checks -> wirkt nur bei Gateway oder Repeater, ist dort per default aktiviert
 
-// #define MY_NODE_ID 							150
-#define MY_NODE_ID 							180		//Test
+#define MY_NODE_ID 							150
+// #define MY_NODE_ID 							180		//Test
 // #define MY_NODE_ID 							181			//Teichwasser Batterie Sensor
 // #define MY_NODE_ID 							182			//Gartenhaus Temperatur Sensors
 #define MY_PARENT_NODE_ID 					0		//without this the node broadcasts everything to parent 255 (dont know what happens, if 2 repeater receive this at the same time)
 // #define MY_PARENT_NODE_IS_STATIC
 // #define MY_PASSIVE_NODE										//default: deaktiviert -> Nur bei Batteriesensoren sillvoll, die im Grenzbereich für den Empfang liegen
 
+#define MY_INDICATION_HANDLER                  //erlaubt rewrite der Funktion void indication(indication_t ind) 
 
+
+
+// ###################   Node Spezifisch   #####################
 
 // #define HEARTBEAT_INTERVAL        			600000        //wird bei OneWireMaster nicht verwendet. Stattdessen wird in loop() als letztes wait SLEEP_TIME aufgerufen
 
@@ -86,6 +91,17 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 #define MAX_DEBUG_LEVEL         			9
 
 
+
+/** Werte für Debug überschreiben **/
+// #ifdef SER_DEBUG
+
+// #define SLEEP_TIME          				600000       //default: 600000
+// #define MY_NODE_ID               			180
+
+// #endif
+
+
+
 // ###################   Allgemeine MySensors Funktionen aus CommonFunctions.h (erhöht den Speicherverbrauch   #####################
 
 // #define	WITH_BATTERY						//DS18B20 Sensoren funktionieren nicht mit weniger als 2,5V, eigentlich müsste OneWireMaster mit 5V und Netzteil betriebern werden
@@ -97,7 +113,9 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 #include <MySensors.h>
 #include <DallasTemperature.h>	// https://github.com/milesburton/Arduino-Temperature-Control-Library Version 3.8.0
 #include <OneWire.h>			// https://www.pjrc.com/teensy/td_libs_OneWire.html Version 2.3.4
-#include "C:\_Lokale_Daten_ungesichert\Arduino\MySensors\CommonFunctions.h" //muss nach allen anderen #defines stehen
+//#include "C:\_Lokale_Daten_ungesichert\Arduino\MySensors\CommonFunctions.h" //muss nach allen anderen #defines stehen
+#include "/home/tmandel/1_Entwicklung/git/MySensors/CommonFunctions.h" //muss nach allen anderen #defines stehen
+
 
 OneWire oneWire(ONE_WIRE_BUS); // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 DallasTemperature sensors(&oneWire); // Pass the oneWire reference to Dallas Temperature. 
@@ -121,18 +139,28 @@ uint8_t DevLastCheckSum = 0;
 //	9	Reboot /Arduino hängt sich auf, wenn default Bootloader installiert ist. Optiboot V8 von 2018 funktioniert (https://github.com/Optiboot/optiboot/releases/tag/v8.0)
 
 
-// void(* resetFunc) (void) = 0; //declare reset function @ address 0
-
-void preHwInit() 
+void preHwInit() //kein serieller Output 
 {
-	DEBUG_SERIAL(MY_BAUD_RATE);
-	DEBUG_PRINTLN("preHwInit");
+
 }
 
-void before()
+void before() 
 {
+	#if defined(MY_DISABLED_SERIAL)
+	  //Serielles Interface nur setzten, falls nicht schon von MySensors Framework erledledigt
+		#if defined SER_DEBUG
+			DEBUG_SERIAL(MY_BAUD_RATE); // MY_BAUD_RATE from MyConfig.h 115200ul, gehört nach preHwInit. Falls in before(), friert der Arduino ein
+			DEBUG_PRINTLN("NO MySensors Serial Interface. Starting own Interface for Debug");
+		#else
+			Serial.begin(MY_BAUD_RATE);
+			Serial.println(F("NO MySensors Serial Interface. No Debug"));
+		#endif
+	#else
+		Serial.println(F("MySensors already activated Serial Interface"));
+	#endif
+  
 	DEBUG_PRINTLN("before");
-	
+  
 	
 	debugLevel = loadState(EEPROM_DEVICE_DEBUG_LEVEL); 	//8 Bit
 	DevCheckSum = loadState(EEPROM_DEVICE_CHECKSUM); 	//8 Bit
@@ -169,7 +197,7 @@ void setup()
 
 void presentation()
 {
-	DEBUG_PRINTLN("presentation...");
+	myPresentation();
 	char ChildTextTemp[sizeof(CHILD_OW_TEMP_TEXT)+1]=CHILD_OW_TEMP_TEXT;
 	char ChildTextName[sizeof(CHILD_OW_TEMP_NAME_TEXT)+1]=CHILD_OW_TEMP_NAME_TEXT;
 	char SendString[25] = ""; //mehr als 25 Zeichen werden nicht übertragen
@@ -191,7 +219,6 @@ void presentation()
 			
 		}
 	}
-	myPresentation();
 }
 
 void loop()
@@ -236,11 +263,14 @@ void loop()
 			else
 			{
 				DEBUG_PRINT("GoodTemp: ");
-				DEBUG_PRINTLN(temperature);
+				DEBUG_PRINT(temperature);
 				send(msgOwTemp.setSensor(CHILD_OW_TEMP+i).setType(V_TEMP).set(temperature,1));//Temp mit einer Nachkommastelle senden
 				send(msgOwTemp.setSensor(CHILD_OW_TEMP+i).setType(V_ID).set(tempDeviceAddress,8));
 				LoadName(i);//Load from EEPROM to volatile char cThermoName
 				send(msgOwName.setSensor(CHILD_OW_TEMP_NAME+i).set(cThermoName));
+				DEBUG_PRINT(" ");
+				DEBUG_PRINTLN(cThermoName);
+				
 			}
 		}
 	}
@@ -430,8 +460,8 @@ void ClearEeprom()
 {
 	// debugMessage("ClearEeprom", "");
 	send(msgDebugReturnString.set(F("EEPROM cleared")));
-	// for (uint8_t i = EEPROM_DEVICE_TEMP_ID_START; i < EEPROM_DEVICE_TEMP_ID_START+MAX_ATTACHED_DS18B20*EEPROM_DEVICE_CNT_STEP; i++)
-	for (uint8_t i = EEPROM_DEVICE_TEMP_NAME_START; i < EEPROM_DEVICE_TEMP_ID_START+MAX_ATTACHED_DS18B20*EEPROM_DEVICE_CNT_STEP; i++)
+	for (uint8_t i = EEPROM_DEVICE_TEMP_ID_START; i < EEPROM_DEVICE_TEMP_ID_START+MAX_ATTACHED_DS18B20*EEPROM_DEVICE_CNT_STEP; i++)
+	// for (uint8_t i = EEPROM_DEVICE_TEMP_NAME_START; i < EEPROM_DEVICE_TEMP_ID_START+MAX_ATTACHED_DS18B20*EEPROM_DEVICE_CNT_STEP; i++)
 	{
 		Serial.print("Clearing Pos: "); 
 		Serial.println(i);
@@ -465,11 +495,7 @@ void receive(const MyMessage &message)
 				{
 					case V_TEXT: 
 					{	
-						// charAddr8 = message.getString();
-						// debugMessage("got V_VAR1: ", String(charAddr8));
-						// SaveName(i,String(charAddr8));
 						SaveName(i,message.getString());
-						
 					}
 				}
 			}
@@ -478,6 +504,13 @@ void receive(const MyMessage &message)
 	
 	
 
+//	0 	off
+//	1	showEEpromHex()
+//	2
+//	3	not implemented yet -> scanne nach aktuell angeschlossenen OwDevices und gebe für die restlichen den Speicher im EEPROM frei
+//	4 	clear all EEprom, switch back to debugLevel=0
+//	5	saveState(EEPROM_DEVICE_TEMP_ID_START, 65);// OwID an Index 1 erste Stelle ungültig machen
+//	9	Reboot /Arduino hängt sich auf, wenn default Bootloader installiert ist. Optiboot V8 von 2018 funktioniert (https://github.com/Optiboot/optiboot/releases/tag/v8.0)
 
 	if (message.sensor == CHILD_DEBUG_LEVEL)
 	{ 
@@ -485,21 +518,22 @@ void receive(const MyMessage &message)
 		{
 			case V_TEXT: 
 			{
-				// debugLevel = message.getULong();
 				debugLevel = message.getByte();
-				if (debugLevel == 3)
+				if (debugLevel == 1)
 				{
+					debugLevel=0;
 					#ifdef SER_DEBUG
 						send(msgDebugReturnString.set(F("showEEpromHex")));
 						showEEpromHex();
 					#else
-						send(msgDebugReturnString.set(F("dbg3 not possible")));
+						send(msgDebugReturnString.set(F("dbg1 not possible")));
 					#endif
+
 				}
 				if (debugLevel == 4)
 				{
-					ClearEeprom();
 					debugLevel=0;
+					ClearEeprom();
 				
 					saveState(EEPROM_DEVICE_DEBUG_LEVEL, debugLevel);//8 Bit
 					send(msgDebugLevel.set(debugLevel));
@@ -510,7 +544,8 @@ void receive(const MyMessage &message)
 				}
 				if (debugLevel == 5)
 				{
-					send(msgDebugReturnString.set(F("Dbg3 Destroy OWID 0")));
+					debugLevel=0;
+					send(msgDebugReturnString.set(F("Dbg5 Destroy OWID 0")));
 					saveState(EEPROM_DEVICE_TEMP_ID_START, 65);// OwID an Index 1 erste Stelle ungültig machen
 				}				
 				if (debugLevel == 9)
