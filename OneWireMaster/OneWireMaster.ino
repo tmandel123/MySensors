@@ -4,19 +4,22 @@
  
 20221115 Verison 2.01		Versionierung begonnen
 							Präprozessoranweisungen für OneWireMaster hinzugefügt
+20230124 Verison 2.02		SLEEP_TIME auf 300000 statt 600000
+20230124 Verison 2.03		wait(SEND_WAIT), RF24_PA_MIN damit der Repeater (MYSEnergy) nicht überlagert wird
+20230124 Verison 2.04		Statistische Werte und myHeartBeatLoop nur noch alle 10 Durchläufe senden
 
 */
 
 
 
-#define SKETCH_VER            				"2.01"        			// Sketch version
+#define SKETCH_VER            				"2.04"        			// Sketch version
 #define SKETCH_NAME           				"OneWireMaster"   		// Optional child sensor name
 
 
 
 //	###################   Debugging   #####################
 // #define MY_DEBUG											//Output kann im LogParser analysiert werden https://www.mysensors.org/build/parser
-#define SER_DEBUG											// aus CommonFunctions.h für eigenes DEBUG_PRINT
+// #define SER_DEBUG											// aus CommonFunctions.h für eigenes DEBUG_PRINT
 #define MY_SPECIAL_DEBUG									// für Extended Debug in FHEM
 // #define MY_DEBUG_VERBOSE_RF24								//Testen, welche zusätzlichen Infos angezeigt werden
 // #define MY_SPLASH_SCREEN_DISABLED
@@ -44,7 +47,7 @@ RF24_PA_HIGH = 	-6dBm 		2	R_TX_Powerlevel_Pct
 RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 */
 
-#define MY_RF24_PA_LEVEL 					RF24_PA_LOW
+#define MY_RF24_PA_LEVEL 					RF24_PA_MIN
 #define MY_RADIO_RF24
 // #define MY_RF24_CE_PIN 						10 				//nur für RF-Nano verwenden
 // #define MY_RF24_CS_PIN 						9				//nur für RF-Nano verwenden
@@ -58,7 +61,7 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 // #define MY_NODE_ID 							180		//Test
 // #define MY_NODE_ID 							181			//Teichwasser Batterie Sensor
 // #define MY_NODE_ID 							182			//Gartenhaus Temperatur Sensors
-#define MY_PARENT_NODE_ID 					0		//without this the node broadcasts everything to parent 255 (dont know what happens, if 2 repeater receive this at the same time)
+// #define MY_PARENT_NODE_ID 					0		//without this the node broadcasts everything to parent 255 (dont know what happens, if 2 repeater receive this at the same time)
 // #define MY_PARENT_NODE_IS_STATIC
 // #define MY_PASSIVE_NODE										//default: deaktiviert -> Nur bei Batteriesensoren sillvoll, die im Grenzbereich für den Empfang liegen
 
@@ -68,13 +71,13 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 
 // ###################   Node Spezifisch   #####################
 
-// #define HEARTBEAT_INTERVAL        			600000        //wird bei OneWireMaster nicht verwendet. Stattdessen wird in loop() als letztes wait SLEEP_TIME aufgerufen
+#define HEARTBEAT_INTERVAL        			10        //wird bei OneWireMaster als Anzahl der Loops benutzt
 
 
 #define ONE_WIRE_BUS 4 // Pin where dallas sensor is connected 
 
-#define OW_RESOLUTION						12
-#define SLEEP_TIME							600000				//default:	600000
+#define OW_RESOLUTION						11
+#define SLEEP_TIME							180000				//default:	180000 bei Batterie Sensoren 600000
 #define MAX_ATTACHED_DS18B20      			8					//mehr als 8 funktioniert nicht mit den vorhandenen Methoden
 
 #define EEPROM_DEVICE_NAME_LENGTH   		8
@@ -113,8 +116,8 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 #include <MySensors.h>
 #include <DallasTemperature.h>	// https://github.com/milesburton/Arduino-Temperature-Control-Library Version 3.8.0
 #include <OneWire.h>			// https://www.pjrc.com/teensy/td_libs_OneWire.html Version 2.3.4
-//#include "C:\_Lokale_Daten_ungesichert\Arduino\MySensors\CommonFunctions.h" //muss nach allen anderen #defines stehen
-#include "/home/tmandel/1_Entwicklung/git/MySensors/CommonFunctions.h" //muss nach allen anderen #defines stehen
+#include "C:\_Lokale_Daten_ungesichert\Arduino\MySensors\CommonFunctions.h" //muss nach allen anderen #defines stehen
+// #include "/home/tmandel/1_Entwicklung/git/MySensors/CommonFunctions.h" //muss nach allen anderen #defines stehen
 
 
 OneWire oneWire(ONE_WIRE_BUS); // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
@@ -125,9 +128,10 @@ DeviceAddress tempDeviceAddress; 		//typedef uint8_t DeviceAddress[8];
 char cThermoName[]="-8Name8-";
 char cThermoKnown[]="NNNNNNNN";
 
-uint8_t debugLevel = 0; 
-uint8_t DevCheckSum = 0; 
+uint8_t debugLevel 		= 0; 
+uint8_t DevCheckSum 	= 0; 
 uint8_t DevLastCheckSum = 0; 
+uint8_t loopCount 		= (uint8_t)HEARTBEAT_INTERVAL; //vorbelegen, damit beim Neustart zunächst statistische Werte übermittelt werden
 
 // debugLevel switches
 //	0 	off
@@ -203,9 +207,11 @@ void presentation()
 	char SendString[25] = ""; //mehr als 25 Zeichen werden nicht übertragen
 	
 	sendSketchInfo(SKETCH_NAME, SKETCH_VER);
-	
+	wait(SEND_WAIT);	
 	present(CHILD_OW_CONNECTED, 		S_INFO, 		CHILD_OW_CONNECTED_TEXT);
+	wait(SEND_WAIT);
 	present(CHILD_OW_DEV_COUNT, 		S_INFO, 		CHILD_OW_DEV_COUNT_TEXT);
+	wait(SEND_WAIT);
 	present(CHILD_OW_RESOLUTION,		S_INFO,			CHILD_OW_RESOLUTION_TEXT);
 
 	for (uint8_t i = 0; i < MAX_ATTACHED_DS18B20; i++)
@@ -214,8 +220,10 @@ void presentation()
 		{
 			sprintf(SendString, "%s_%d",ChildTextTemp,i);
 			present(CHILD_OW_TEMP+i, 		S_TEMP,		SendString);
+			wait(SEND_WAIT);
 			sprintf(SendString, "%s_%d",ChildTextName,i);
 			present(CHILD_OW_TEMP_NAME+i, 	S_INFO, 	SendString);
+			wait(SEND_WAIT);
 			
 		}
 	}
@@ -223,9 +231,7 @@ void presentation()
 
 void loop()
 {
-	myHeartBeatLoop();		//Eigene Funktion aus CommonFunctions.h
 	sortOwAdresses();
-	
 	sensors.requestTemperatures();
 	//int16_t conversionTime = sensors.millisToWaitForConversion(sensors.getResolution());
 	
@@ -258,26 +264,57 @@ void loop()
 			{
 				DEBUG_PRINT("WrongTemp: ");
 				DEBUG_PRINTLN(temperature);
-				send(msgDebugReturnString.set(F("Wrong Temp < -50 our > 80")));  
+				send(msgDebugReturnString.set(F("Wrong Temp < -50 our > 80")));
+				wait(SEND_WAIT);
 			}
 			else
 			{
 				DEBUG_PRINT("GoodTemp: ");
 				DEBUG_PRINT(temperature);
 				send(msgOwTemp.setSensor(CHILD_OW_TEMP+i).setType(V_TEMP).set(temperature,1));//Temp mit einer Nachkommastelle senden
-				send(msgOwTemp.setSensor(CHILD_OW_TEMP+i).setType(V_ID).set(tempDeviceAddress,8));
-				LoadName(i);//Load from EEPROM to volatile char cThermoName
-				send(msgOwName.setSensor(CHILD_OW_TEMP_NAME+i).set(cThermoName));
-				DEBUG_PRINT(" ");
-				DEBUG_PRINTLN(cThermoName);
+				wait(SEND_WAIT);
+				// send(msgOwTemp.setSensor(CHILD_OW_TEMP+i).setType(V_ID).set(tempDeviceAddress,8));
+				// wait(SEND_WAIT);
+				#ifdef SER_DEBUG
+					LoadName(i);//Load from EEPROM to volatile char cThermoName
+					// send(msgOwName.setSensor(CHILD_OW_TEMP_NAME+i).set(cThermoName));
+					// wait(SEND_WAIT);
+					DEBUG_PRINT(" ");
+					DEBUG_PRINTLN(cThermoName);
+				#endif
 				
 			}
 		}
 	}
+	
+	if (loopCount >= (uint8_t)HEARTBEAT_INTERVAL)
+	{
+		loopCount=0;
+		send(msgDebugLevel.set(debugLevel));
+		wait(SEND_WAIT);
+		send(msgDebugOWConList.set(cThermoKnown));
+		wait(SEND_WAIT);
+		send(msgOwResolution.set(OW_RESOLUTION));
+		wait(SEND_WAIT);
+		
+		for (uint8_t i = 0; i < MAX_ATTACHED_DS18B20; i++)
+		{
+			if (cThermoKnown[i] == 'Y')//weitermachen, wenn 1
+			{
+				for (uint8_t j=0;j<EEPROM_DEVICE_ID_LENGTH;j++)
+				{
+					tempDeviceAddress[j]=loadState(EEPROM_DEVICE_TEMP_ID_START+(i*EEPROM_DEVICE_CNT_STEP)+j);
+				}
+				send(msgOwTemp.setSensor(CHILD_OW_TEMP+i).setType(V_ID).set(tempDeviceAddress,8));
+				wait(SEND_WAIT);
+				LoadName(i);//Load from EEPROM to volatile char cThermoName
+				send(msgOwName.setSensor(CHILD_OW_TEMP_NAME+i).set(cThermoName));
+				wait(SEND_WAIT);
+			}
+		}
+		myHeartBeatLoop();
+	}
 
-	send(msgDebugLevel.set(debugLevel));
-	send(msgDebugOWConList.set(cThermoKnown));
-	send(msgOwResolution.set(OW_RESOLUTION));
 
 	#ifdef WITH_BATTERY
 		DEBUG_PRINT(F("smartSleep "));
@@ -288,7 +325,7 @@ void loop()
 		DEBUG_PRINTLN(SLEEP_TIME);
 		wait((uint32_t)SLEEP_TIME);
 	#endif
-
+	loopCount++;
 }
 
 
