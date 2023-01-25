@@ -2,11 +2,11 @@
 
 #############################		Versionen		###################################
  
-20221115 Verison 2.01		Versionierung begonnen
+20221115 Version 2.01		Versionierung begonnen
 							Präprozessoranweisungen für OneWireMaster hinzugefügt
-20230124 Verison 2.02		SLEEP_TIME auf 300000 statt 600000
-20230124 Verison 2.03		wait(SEND_WAIT), RF24_PA_MIN damit der Repeater (MYSEnergy) nicht überlagert wird
-20230124 Verison 2.04		Statistische Werte und myHeartBeatLoop nur noch alle 10 Durchläufe senden
+20230124 Version 2.02		SLEEP_TIME auf 300000 statt 600000
+20230124 Version 2.03		wait(SEND_WAIT), RF24_PA_MIN damit der Repeater (MYSEnergy) nicht überlagert wird
+20230124 Version 2.04		Statistische Werte und myHeartBeatLoop nur noch alle 10 Durchläufe senden
 
 */
 
