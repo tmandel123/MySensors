@@ -9,19 +9,20 @@
 20230124 Version 2.04		Statistische Werte und myHeartBeatLoop nur noch alle 10 Durchläufe senden
 20230209 Version 2.05		Anpassungen, damit neue Devices schneller in FHEM angezeigt werden
 20230209 Version 2.06		Erweitertes Debugging, womit der Speicherplatz für die Sensoren manipuliert werden kann.
+20230228 Version 2.07		Code umstrukturiert, ohne funktionelle Änderungen
 
 */
 
 
 // ToDo: über Debug oder anderen Child immer nur einen Speicherplatz für einen defekten Sensor zurücksetzen (statt ClearEeprom)
 
-#define SKETCH_VER            				"2.06"        			// Sketch version
+#define SKETCH_VER            				"2.07"        			// Sketch version
 #define SKETCH_NAME           				"OneWireMaster"   		// Optional child sensor name
 
 
 
 //	###################   Debugging   #####################
-// #define MY_DEBUG											//Output kann im LogParser analysiert werden https://www.mysensors.org/build/parser
+#define MY_DEBUG											//Output kann im LogParser analysiert werden https://www.mysensors.org/build/parser
 #define SER_DEBUG											// aus CommonFunctions.h für eigenes DEBUG_PRINT
 #define MY_SPECIAL_DEBUG									// für Extended Debug in FHEM
 // #define MY_DEBUG_VERBOSE_RF24								//Testen, welche zusätzlichen Infos angezeigt werden
@@ -60,15 +61,27 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 #define MY_TRANSPORT_WAIT_READY_MS 			(5000ul)
 // #define MY_TRANSPORT_SANITY_CHECK			//enable regular transport sanity checks -> wirkt nur bei Gateway oder Repeater, ist dort per default aktiviert
 
-// #define MY_NODE_ID 							150				//MYSTemp1
-// #define MY_NODE_ID 							180				//Test
-// #define MY_NODE_ID 							181				//Teichwasser Batterie Sensor
-#define MY_NODE_ID 							182				//Gartenhaus Temperatur Sensors
+
+// ########   Node MYSTemp1  #######################################
+#define MY_NODE_ID 							150				//MYSTemp1
 #define MY_PARENT_NODE_ID 					0				//without this the node broadcasts everything to parent 255 (dont know what happens, if 2 repeater receive this at the same time)
 #define MY_PARENT_NODE_IS_STATIC
-#define MY_PASSIVE_NODE										//default: deaktiviert -> Nur bei Batteriesensoren sillvoll, die im Grenzbereich für den Empfang liegen
+#define SLEEP_TIME							180000				//default:	180000 bei Batterie Sensoren 600000
 
-#define MY_INDICATION_HANDLER                  //erlaubt rewrite der Funktion void indication(indication_t ind) 
+// ########  Batterie Node  #######################################
+// #define MY_NODE_ID 							180				//Test
+// #define MY_PARENT_NODE_ID 					0				//without this the node broadcasts everything to parent 255 (dont know what happens, if 2 repeater receive this at the same time)
+// #define MY_PARENT_NODE_IS_STATIC
+// #define MY_PASSIVE_NODE										//default: deaktiviert -> Nur bei Batteriesensoren sillvoll, die im Grenzbereich für den Empfang liegen
+#define SLEEP_TIME							600000				//default:	180000 bei Batterie Sensoren 600000
+
+// ########  ToDo andere Nodes  #######################################
+
+// #define MY_NODE_ID 							181				//Teichwasser Batterie Sensor
+// #define MY_NODE_ID 							182				//Gartenhaus Temperatur Sensors
+
+
+#define MY_INDICATION_HANDLER                  //erlaubt rewrite der Funktion void indication(indication_t ind) Tx_ERR, Tx_OK, TX_RSSI
 
 
 
@@ -76,11 +89,8 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 
 #define HEARTBEAT_INTERVAL        			10        //wird bei OneWireMaster als Anzahl der Loops benutzt
 
-
 #define ONE_WIRE_BUS 4 // Pin where dallas sensor is connected 
-
 #define OW_RESOLUTION						11
-#define SLEEP_TIME							600000				//default:	180000 bei Batterie Sensoren 600000
 #define MAX_ATTACHED_DS18B20      			8					//mehr als 8 funktioniert nicht mit den vorhandenen Methoden
 
 #define EEPROM_DEVICE_NAME_LENGTH   		8
@@ -110,10 +120,20 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 
 // ###################   Allgemeine MySensors Funktionen aus CommonFunctions.h (erhöht den Speicherverbrauch   #####################
 
-#define	WITH_BATTERY						//DS18B20 Sensoren funktionieren nicht mit weniger als 2,5V, eigentlich müsste OneWireMaster mit 5V und Netzteil betriebern werden
-// #define WITH_HWTIME
-// #define WITH_RF24_INFO						// übermittel RSSI, PA_Level, RF_Channel
-#define WITH_NODE_INFO						// übermittel NodeID, ParentNodeID
+#if MY_NODE_ID >= 150 and MY_NODE_ID < 180
+	// #define	WITH_BATTERY						//DS18B20 Sensoren funktionieren nicht mit weniger als 2,5V, eigentlich müsste OneWireMaster mit 5V und Netzteil betriebern werden
+	#define WITH_HWTIME
+	#define WITH_RF24_INFO						// übermittel RSSI, PA_Level, RF_Channel
+	#define WITH_NODE_INFO						// übermittel NodeID, ParentNodeID
+
+#else
+	#define	WITH_BATTERY						//DS18B20 Sensoren funktionieren nicht mit weniger als 2,5V, eigentlich müsste OneWireMaster mit 5V und Netzteil betriebern werden
+	// #define WITH_HWTIME
+	// #define WITH_RF24_INFO						// übermittel RSSI, PA_Level, RF_Channel
+	#define WITH_NODE_INFO						// übermittel NodeID, ParentNodeID
+
+#endif
+
 
 
 #include <MySensors.h>
@@ -320,11 +340,11 @@ void loop()
 				}
 				else
 				{
-					DEBUG_PRINT(F("GoodTemp: "));
-					DEBUG_PRINT(temperature);
 					send(msgOwTemp.setSensor(CHILD_OW_TEMP+i).setType(V_TEMP).set(temperature,1));//Temp mit einer Nachkommastelle senden
 					wait(SEND_WAIT);
 					#ifdef SER_DEBUG
+						DEBUG_PRINT(F("GoodTemp: "));
+						DEBUG_PRINT(temperature);
 						LoadName(i);//Load from EEPROM to volatile char cThermoName
 						DEBUG_PRINT(F(" Idx: "));
 						DEBUG_PRINT(i);
@@ -361,12 +381,13 @@ void loop()
 				{
 					tempDeviceAddress[j]=loadState(EEPROM_DEVICE_TEMP_ID_START+(i*EEPROM_DEVICE_CNT_STEP)+j);
 				}
-				send(msgOwTemp.setSensor(CHILD_OW_TEMP+i).setType(V_ID).set(tempDeviceAddress,8));
-				wait(SEND_WAIT);
 				LoadName(i);//Load from EEPROM to volatile char cThermoName
 				DEBUG_PRINTLN(cThermoName);
 				send(msgOwName.setSensor(CHILD_OW_TEMP_NAME+i).set(cThermoName));
 				wait(SEND_WAIT);
+				send(msgOwTemp.setSensor(CHILD_OW_TEMP+i).setType(V_ID).set(tempDeviceAddress,8));
+				wait(SEND_WAIT);
+
 			}
 		}
 		myHeartBeatLoop();
