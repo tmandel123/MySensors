@@ -71,7 +71,7 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 #define MY_RADIO_RF24
 #define MY_RF24_CHANNEL 					96
 // #define MY_TRANSPORT_WAIT_READY_MS 			(5000ul)
-#define MY_TRANSPORT_SANITY_CHECK
+// #define MY_TRANSPORT_SANITY_CHECK	//enable regular transport sanity checks -> wirkt nur bei Gateway oder Repeater, ist dort per default aktiviert
 
 #define MY_NODE_ID 							110
 // #define MY_PARENT_NODE_ID 					100		//without this passive node broadcasts everything to parent 255 (dont know what happens if 2 repeater receive this at the same time)
@@ -82,7 +82,7 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 #define MY_INDICATION_HANDLER									//erlaubt rewrite der Funktion void indication(indication_t ind) 
 
 // ###################   Node Spezifisch   #####################
-#define SKETCH_VER            				"1.0-006"        			// Sketch version
+#define SKETCH_VER            				"1.0-007"        			// Sketch version
 #define SKETCH_NAME           				"LEDSwitch"   				// Optional child sensor name
 
 // #define WITH_BUTTON
@@ -102,7 +102,7 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 
 
 #define MAX_LED_LEVEL						1
-#define LED_LEVEL_EEPROM					0
+#define LED_LEVEL_EEPROM					0					// Startwert nach Stromwiederkehr
 #define	BLINK_DELAY							50
 #define HEARTBEAT_INTERVAL					300000				//später alle 5 Minuten, zum Test alle 30 Sekunden
 
@@ -150,12 +150,13 @@ void setup()
 	DEBUG_PRINTLN("Setup");
 	Blink();
 	send( msgSwitchState.set(currentLevel) );
-	setIrqOn();
+	setIrqOn(); // wird weiter unten nur definiert, falls #WITH_BUTTON definiert wurde
 }
 
 void presentation()
 {
-	mySendSketchInfo();
+	DEBUG_PRINTLN(F("Present BinaryLEDSwitch"));
+	sendSketchInfo(SKETCH_NAME, SKETCH_VER);
 	present(CHILD_SINGLE_LED_SWITCH, 	S_BINARY, 		CHILD_SINGLE_LED_SWITCH_TEXT);
 	myPresentation();
 }
@@ -173,7 +174,7 @@ void loop()
 	if (justReceived)//
 	{
 		DEBUG_PRINTLN("justReceived");
-		setIrqOn();
+		setIrqOn(); // wird weiter unten nur definiert, falls #WITH_BUTTON definiert wurde
 		justReceived = false;
 	}
 
@@ -188,18 +189,18 @@ void loop()
 	{
 		DEBUG_PRINTLN("prepare to sleep");
 		#ifdef WITH_BUTTON
-		setIrqOff();
-		int8_t wakeupReason = sleep(digitalPinToInterrupt(TOGGLE_BUTTON), FALLING , SLEEP_TIME, true);
-		if (wakeupReason == digitalPinToInterrupt(TOGGLE_BUTTON))
-		{
-			currentLevel = 1;
-			deBounce();//wait for button to be released
-			lastButtonPressed=millis();
-			DEBUG_PRINTLN("LED on after wake by ButtonIRQ");
-			setIrqOn();
-		}
+			setIrqOff();
+			int8_t wakeupReason = sleep(digitalPinToInterrupt(TOGGLE_BUTTON), FALLING , SLEEP_TIME, true);
+			if (wakeupReason == digitalPinToInterrupt(TOGGLE_BUTTON))
+			{
+				currentLevel = 1;
+				deBounce();//wait for button to be released
+				lastButtonPressed=millis();
+				DEBUG_PRINTLN("LED on after wake by ButtonIRQ");
+				setIrqOn();
+			}
 		#else
-		sleep(SLEEP_TIME, true);		//true = smartSleep	
+			sleep(SLEEP_TIME, true);		//true = smartSleep	
 		#endif
 		
 		heartBeatCounter++;
@@ -218,12 +219,12 @@ void loop()
 		}
 	}
 	#ifdef WITH_SLEEP
-	if (heartBeatCounter > 3)//sendHeartbeat to flush retained messaged
-	{
-		sendHeartbeat(); 
-		heartBeatCounter = 0;
-		send( msgSwitchState.set(currentLevel) );
-	}
+		if (heartBeatCounter > 3)//sendHeartbeat to flush retained messaged
+		{
+			sendHeartbeat(); 
+			heartBeatCounter = 0;
+			send( msgSwitchState.set(currentLevel) );
+		}
 	#endif
 }
 
@@ -259,7 +260,7 @@ void setLED(uint8_t newLevel)
 	{
 		digitalWrite(LED_PWM_PIN,newLevel);
 	}
-	saveState(LED_LEVEL_EEPROM, newLevel);//8 Bit
+	// saveState(LED_LEVEL_EEPROM, newLevel);//8 Bit
 	send( msgSwitchState.set(newLevel) );
 }
 
@@ -274,67 +275,67 @@ void Blink()
 }
 
 #ifdef WITH_BUTTON
-void setIrqOn()
-{
-	DEBUG_PRINTLN("setIrqOn");
-	noInterrupts();
-	clearPendingInterrupt(digitalPinToInterrupt(TOGGLE_BUTTON)); //MySensors Funktion
-	attachInterrupt(digitalPinToInterrupt(TOGGLE_BUTTON), ToggleWhileButtonPressed, FALLING );
-	interrupts();
-}
-
-void setIrqOff()
-{
-	DEBUG_PRINTLN("setIrqOff");
-	noInterrupts();
-	detachInterrupt(digitalPinToInterrupt(TOGGLE_BUTTON));
-	clearPendingInterrupt(digitalPinToInterrupt(TOGGLE_BUTTON)); //MySensors Funktion	
-	interrupts();
-}
-
-
-void deBounce() // inspired by https://gammon.com.au/interrupts
-{
-	uint32_t now = millis ();
-	do
+	void setIrqOn()
 	{
-		// on bounce, reset time-out
-		if (digitalRead (TOGGLE_BUTTON) == LOW)
+		DEBUG_PRINTLN("setIrqOn");
+		noInterrupts();
+		clearPendingInterrupt(digitalPinToInterrupt(TOGGLE_BUTTON)); //MySensors Funktion
+		attachInterrupt(digitalPinToInterrupt(TOGGLE_BUTTON), ToggleWhileButtonPressed, FALLING );
+		interrupts();
+	}
+
+	void setIrqOff()
+	{
+		DEBUG_PRINTLN("setIrqOff");
+		noInterrupts();
+		detachInterrupt(digitalPinToInterrupt(TOGGLE_BUTTON));
+		clearPendingInterrupt(digitalPinToInterrupt(TOGGLE_BUTTON)); //MySensors Funktion	
+		interrupts();
+	}
+
+
+	void deBounce() // inspired by https://gammon.com.au/interrupts
+	{
+		uint32_t now = millis ();
+		do
 		{
-			now = millis();
+			// on bounce, reset time-out
+			if (digitalRead (TOGGLE_BUTTON) == LOW)
+			{
+				now = millis();
+			}
+		}	
+		while ((digitalRead (TOGGLE_BUTTON) == LOW) || ((millis() - now) <= debounceTime));
+
+	}
+
+
+	void ToggleWhileButtonPressed()
+	{
+		DEBUG_PRINT("TB");
+		uint32_t now=millis();
+		if ((now - lastButtonPressed) < 150)
+		{
+			DEBUG_PRINTLN(" JT");
+			return;
 		}
-	}	
-	while ((digitalRead (TOGGLE_BUTTON) == LOW) || ((millis() - now) <= debounceTime));
+		DEBUG_PRINTLN(" OK");
+		lastButtonPressed=now;
 
-}
+		if (currentLevel == 0)
+		{
+			currentLevel=1;
+		}
+		else
+		{
+			currentLevel=0;
+		}
 
-
-void ToggleWhileButtonPressed()
-{
-	DEBUG_PRINT("TB");
-	uint32_t now=millis();
-	if ((now - lastButtonPressed) < 150)
-	{
-		DEBUG_PRINTLN(" JT");
-		return;
 	}
-	DEBUG_PRINTLN(" OK");
-	lastButtonPressed=now;
-
-	if (currentLevel == 0)
-	{
-		currentLevel=1;
-	}
-	else
-	{
-		currentLevel=0;
-	}
-
-}
 
 #else
-void setIrqOn(){};
-void setIrqOff(){};
-void deBounce(){};
-void ToggleWhileButtonPressed(){};
+	void setIrqOn(){};
+	void setIrqOff(){};
+	void deBounce(){};
+	void ToggleWhileButtonPressed(){};
 #endif
