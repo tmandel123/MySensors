@@ -8,6 +8,7 @@
 20221125 Verison 2.04		wait(SEND_WAIT) nach SEND_WAIT eingeführt, weil sonst Übertragungen über einen Repeater verloren gehen  und zu hohen txERR führen
 20230120 Verison 2.05		LED_ON nach MY_LED_ON wegen Namensgleichheit mit MySensors Bibliothek
 20230123 Verison 2.06		#if MY_NODE_ID >= 150 ... (vorher war nur > 150)
+20230228 Verison 2.07		zusätzliches #defindes für NoteID abhängiges Laden
 
 
 
@@ -148,14 +149,16 @@
 
 // MyMessage msgMultiButton					(CHILD_MULTI_BUTTON,			V_TEXT);			//30
 
-#if ((MY_NODE_ID > 99 && MY_NODE_ID < 101) || (MY_NODE_ID > 102 && MY_NODE_ID < 110))
+#if ((MY_NODE_ID >= 100 && MY_NODE_ID <= 100) || (MY_NODE_ID > 102 && MY_NODE_ID < 110))
 	MyMessage msgPowerMeter						(CHILD_POWER_METER,				V_WATT);			//35
 	MyMessage msgPowerPhase						(CHILD_POWER_PHASE,				V_VAR1);			//36
 #endif
 // MyMessage msgServoState						(CHILD_SERVO_STATE,				V_TEXT);			//40
 
-// MyMessage msgDimmerState					(CHILD_SINGLE_LED_DIMMER,		V_DIMMER);			//50
-// MyMessage msgSwitchState					(CHILD_SINGLE_LED_SWITCH,		V_STATUS);			//51
+#if ((MY_NODE_ID >= 110 && MY_NODE_ID <= 129) || (MY_NODE_ID > 102 && MY_NODE_ID < 110))
+	MyMessage msgDimmerState					(CHILD_SINGLE_LED_DIMMER,		V_DIMMER);			//50
+	MyMessage msgSwitchState					(CHILD_SINGLE_LED_SWITCH,		V_STATUS);			//51
+#endif
 
 MyMessage msgDebugLevel						(CHILD_DEBUG_LEVEL,				V_TEXT);			//70
 
