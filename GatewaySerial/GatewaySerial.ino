@@ -1,3 +1,19 @@
+/**
+
+#############################		Versionen		###################################
+ 
+20230301 Version 1.07		mySendSketchInfo nach sendSketchInfo
+
+
+*/
+
+#define SKETCH_VER            				"1.07"        			// Sketch version
+#define SKETCH_NAME           				"Gateway"   			// Optional child sensor name
+
+
+
+
+
 //	###################   Debugging   #####################
 // #define MY_DEBUG
 // #define SER_DEBUG
@@ -41,11 +57,18 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 
 
 // ###################   Node Spezifisch   #####################
-#define SKETCH_VER            				"1.0-006"        			// Sketch version
-#define SKETCH_NAME           				"Gateway"   		// Optional child sensor name
-
 
 #define HEARTBEAT_INTERVAL        			300000        //später alle 5 Minuten, zum Test alle 30 Sekunden
+
+
+// ###################   Allgemeine MySensors Funktionen aus CommonFunctions.h (erhöht den Speicherverbrauch   #####################
+
+
+#define WITH_HWTIME
+#define WITH_RF24_INFO						// übermittel RSSI, PA_Level, RF_Channel
+#define WITH_NODE_INFO						// übermittel NodeID, ParentNodeID
+#define MY_INDICATION_HANDLER                 //erlaubt rewrite der Funktion void indication(indication_t ind) Tx_ERR, Tx_OK, TX_RSSI
+
 
 
 #include <MySensors.h>
@@ -61,7 +84,7 @@ void setup()
 
 void presentation()
 {
-	mySendSketchInfo();
+	sendSketchInfo(SKETCH_NAME, SKETCH_VER);
 	myPresentation();
 	myHeartBeatLoop();
 }
