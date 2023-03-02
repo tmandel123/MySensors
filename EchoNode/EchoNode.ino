@@ -26,6 +26,10 @@ Grundsätzliche funktionsweise:
 
 */
 
+#define SKETCH_VER            				"1.08"        			// Sketch version
+#define SKETCH_NAME           				"Echo Node"   		// Optional child sensor name
+
+
 //	###################   Debugging   #####################
 #define MY_DEBUG												//Output kann im LogParser analysiert werden https://www.mysensors.org/build/parser
 #define SER_DEBUG											// aus CommonFunctions.h für eigenes DEBUG_PRINT
@@ -68,8 +72,6 @@ RF24_PA_MAX = 0dBm
 
 
 // ###################   Node Spezifisch   #####################
-#define SKETCH_VER            				"1.0-007"        			// Sketch version
-#define SKETCH_NAME           				"Echo Node"   		// Optional child sensor name
 #define MY_ECHO_NODE											//for some more myPresentation() sendings
 
 // #define SEND_WAIT							20						// 20ms reicht nicht aus, dann kommt immer NACK, bei 22ms läuft es (mit Repeater sollten es 50ms sein)							
@@ -112,7 +114,7 @@ void before()
 void presentation()
 {
 	DEBUG_PRINTLN("presentation...");;
-	mySendSketchInfo();
+	sendSketchInfo(SKETCH_NAME, SKETCH_VER);
 	myPresentation();
 	// kein eigenes present erforderlich, weil mittels MY_ECHO_NODE über CommonFunctions.h erledigt
 	myHeartBeatLoop();
@@ -166,9 +168,9 @@ void loop()
 		float PacketRatio=float(float(TxGoodCounter)/float(TxGoodCounter+TxFailCounter)*100.0);
 		send(msgPacketRatio.set(PacketRatio,2));
 		
-		nowRSSI=RF24_getSendingRSSI();
-		avgRSSI=((avgRSSI*7)+(nowRSSI))/8;
-		send(msgSendingRSSI.set(avgRSSI));
+		// nowRSSI=RF24_getSendingRSSI();
+		// avgRSSI=((avgRSSI*7)+(nowRSSI))/8;
+		// send(msgSendingRSSI.set(avgRSSI));
 	
 		DEBUG_PRINT("TX Fail: ");
 		DEBUG_PRINT(TxFailCounter);
@@ -176,8 +178,8 @@ void loop()
 		DEBUG_PRINT(TxGoodCounter);
 		DEBUG_PRINT(" Ratio ");
 		DEBUG_PRINT(PacketRatio);
-		DEBUG_PRINT(" avgRSSI ");
-		DEBUG_PRINT(avgRSSI);
+		// DEBUG_PRINT(" avgRSSI ");
+		// DEBUG_PRINT(avgRSSI);
 		DEBUG_PRINT(" Ping ");
 		DEBUG_PRINT(EchoRuntime);
 		DEBUG_PRINT(" minPing ");
