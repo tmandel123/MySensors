@@ -10,19 +10,20 @@
 20230209 Version 2.05		Anpassungen, damit neue Devices schneller in FHEM angezeigt werden
 20230209 Version 2.06		Erweitertes Debugging, womit der Speicherplatz für die Sensoren manipuliert werden kann.
 20230228 Version 2.07		Code umstrukturiert, ohne funktionelle Änderungen
+20230228 Version 2.08		MY_INDICATION_HANDLER automatisch zwischen NodeID 150 und 180
 
 */
 
 
 // ToDo: über Debug oder anderen Child immer nur einen Speicherplatz für einen defekten Sensor zurücksetzen (statt ClearEeprom)
 
-#define SKETCH_VER            				"2.07"        			// Sketch version
+#define SKETCH_VER            				"2.08"        			// Sketch version
 #define SKETCH_NAME           				"OneWireMaster"   		// Optional child sensor name
 
 
 
 //	###################   Debugging   #####################
-#define MY_DEBUG											//Output kann im LogParser analysiert werden https://www.mysensors.org/build/parser
+// #define MY_DEBUG											//Output kann im LogParser analysiert werden https://www.mysensors.org/build/parser
 #define SER_DEBUG											// aus CommonFunctions.h für eigenes DEBUG_PRINT
 #define MY_SPECIAL_DEBUG									// für Extended Debug in FHEM
 // #define MY_DEBUG_VERBOSE_RF24								//Testen, welche zusätzlichen Infos angezeigt werden
@@ -81,9 +82,6 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 // #define MY_NODE_ID 							182				//Gartenhaus Temperatur Sensors
 
 
-#define MY_INDICATION_HANDLER                  //erlaubt rewrite der Funktion void indication(indication_t ind) Tx_ERR, Tx_OK, TX_RSSI
-
-
 
 // ###################   Node Spezifisch   #####################
 
@@ -125,6 +123,8 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 	#define WITH_HWTIME
 	#define WITH_RF24_INFO						// übermittel RSSI, PA_Level, RF_Channel
 	#define WITH_NODE_INFO						// übermittel NodeID, ParentNodeID
+	#define MY_INDICATION_HANDLER                  //erlaubt rewrite der Funktion void indication(indication_t ind) Tx_ERR, Tx_OK, TX_RSSI
+
 
 #else
 	#define	WITH_BATTERY						//DS18B20 Sensoren funktionieren nicht mit weniger als 2,5V, eigentlich müsste OneWireMaster mit 5V und Netzteil betriebern werden
