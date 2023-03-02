@@ -160,7 +160,7 @@
 	MyMessage msgSwitchState					(CHILD_SINGLE_LED_SWITCH,		V_STATUS);			//51
 #endif
 
-MyMessage msgDebugLevel						(CHILD_DEBUG_LEVEL,				V_TEXT);			//70
+
 
 #if ((MY_NODE_ID > 99 && MY_NODE_ID < 101) || (MY_NODE_ID > 102 && MY_NODE_ID < 110))
 	MyMessage msgNewMeterValue					(CHILD_NEW_METER_VALUE,			V_TEXT);			//71
@@ -169,32 +169,40 @@ MyMessage msgDebugLevel						(CHILD_DEBUG_LEVEL,				V_TEXT);			//70
 #ifdef WITH_NODE_INFO
 	MyMessage msgPassiveNode					(CHILD_PASSIVE_NODE, 			V_TEXT);			//80
 	MyMessage msgParentNode						(CHILD_PARENT_NODE, 			V_TEXT);			//81
+	MyMessage msgCpuTemp						(CHILD_CPU_TEMPERATURE, 		V_TEXT);			//88
 #endif
+
+MyMessage msgCompileDate					(CHILD_COMPILEDATE_NODE, 		V_TEXT);			//89
 
 #ifdef MY_INDICATION_HANDLER
 	MyMessage msgTxOK							(CHILD_TX_OK, 					V_TEXT);			//82
 	MyMessage msgTxErr							(CHILD_TX_ERR, 					V_TEXT);			//83
 #endif
 
-// MyMessage msgCpuTemp						(CHILD_CPU_TEMPERATURE, 		V_TEXT);			//88
-MyMessage msgCompileDate					(CHILD_COMPILEDATE_NODE, 		V_TEXT);			//89
+
 
 #ifdef WITH_HWTIME
-	MyMessage msgHwTime							(CHILD_HWTIME, 					V_TEXT);	
+	MyMessage msgHwTime							(CHILD_HWTIME, 					V_TEXT);			//90
 #endif
 
 #ifdef WITH_RF24_INFO
-	MyMessage msgSendingRSSI					(CHILD_TX_RSSI, 				V_TEXT);
-	MyMessage msgPaLevel						(CHILD_RF24_PA_LEVEL, 			V_TEXT);
-	MyMessage msgRFChannel						(CHILD_RF24_CHANNEL, 			V_TEXT);
+	MyMessage msgSendingRSSI					(CHILD_TX_RSSI, 				V_TEXT);			//91
+	MyMessage msgPaLevel						(CHILD_RF24_PA_LEVEL, 			V_TEXT);			//92
+	MyMessage msgRFChannel						(CHILD_RF24_CHANNEL, 			V_TEXT);			//93
 	int16_t 			avgRSSI 	= -29;
 	int16_t 			nowRSSI 	= 0;
 #endif
 
-// MyMessage msgEchoTimeStamp					(CHILD_ECHO_TIMESTAMP, 			V_TEXT);
-// MyMessage msgEchoRunTime					(CHILD_ECHO_RUNTIME, 			V_TEXT);
-MyMessage msgDebugReturnString				(CHILD_DEBUG_RETURN, 			V_TEXT);
-// MyMessage msgPacketRatio					(CHILD_PACKET_RATIO, 			V_TEXT);			//97
+#if MY_NODE_ID >= 225 && MY_NODE_ID <= 226
+	MyMessage msgEchoTimeStamp					(CHILD_ECHO_TIMESTAMP, 			V_TEXT);			//94
+	MyMessage msgEchoRunTime					(CHILD_ECHO_RUNTIME, 			V_TEXT);			//95
+	MyMessage msgPacketRatio					(CHILD_PACKET_RATIO, 			V_TEXT);			//97
+#endif
+
+MyMessage msgDebugLevel							(CHILD_DEBUG_LEVEL,				V_TEXT);			//70
+MyMessage msgDebugReturnString					(CHILD_DEBUG_RETURN, 			V_TEXT);			//96
+
+
 #ifdef WITH_BATTERY
 	MyMessage msgBatvRefValue					(CHILD_BAT_VREF,				V_VOLTAGE);			//99
 #endif
@@ -211,11 +219,12 @@ void myPresentation()
 	DEBUG_PRINTLN(F("myPresentation"));
 	NodePresented = true;
 	present(CHILD_COMPILEDATE_NODE, 	S_INFO,				CHILD_COMPILEDATE_NODE_TEXT);
-	// present(CHILD_CPU_TEMPERATURE, 		S_INFO,				CHILD_CPU_TEMPERATURE_TEXT);
+	
 	wait(SEND_WAIT);
 	#ifdef WITH_NODE_INFO
 		present(CHILD_PASSIVE_NODE, 		S_INFO,				CHILD_PASSIVE_NODE_TEXT);
 		present(CHILD_PARENT_NODE, 			S_INFO,				CHILD_PARENT_NODE_TEXT);
+		present(CHILD_CPU_TEMPERATURE, 		S_INFO,				CHILD_CPU_TEMPERATURE_TEXT);
 	#endif
 	
 
@@ -337,11 +346,14 @@ void myHeartBeatLoop()
 		#else
 			send(msgParentNode.set("fixed"));
 		#endif	
+
 		wait(SEND_WAIT);
+		send(msgCpuTemp.set(hwCPUTemperature()));						//FHEM: text_CpuTemp 		21
 	#endif
-	
+	wait(SEND_WAIT);
 	send(msgCompileDate.set(F(__DATE__ " " __TIME__)));				//FHEM: text_CompileDate	Jan 21 2022 16:03:17
-	// send(msgCpuTemp.set(hwCPUTemperature()));						//FHEM: text_CpuTemp 		21
+	
+
 
 
 	#ifdef MY_INDICATION_HANDLER
