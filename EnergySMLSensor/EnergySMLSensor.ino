@@ -31,7 +31,7 @@
 // #define MY_SIGNAL_REPORT_ENABLED
 
 //	###################   Features   #####################
-#define MY_REPEATER_FEATURE
+// #define MY_REPEATER_FEATURE
 // #define MY_GATEWAY_SERIAL
 // #define MY_INCLUSION_MODE_FEATURE
 // #define MY_INCLUSION_BUTTON_FEATURE
@@ -49,7 +49,7 @@ RF24_PA_LOW = 	-12dBm 		1	R_TX_Powerlevel_Pct				optimal für NRF24L01+
 RF24_PA_HIGH = 	-6dBm 		2	R_TX_Powerlevel_Pct
 RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 */
-#define MY_RF24_PA_LEVEL 					RF24_PA_LOW  //EchoNote hatte Max -> Reichweite bis Gartenhaus (-29) und noch Empfangen (-149) bis hinter Steins Haus
+#define MY_RF24_PA_LEVEL 					RF24_PA_MAX  //EchoNote hatte Max -> Reichweite bis Gartenhaus (-29) und noch Empfangen (-149) bis hinter Steins Haus
 #define MY_RADIO_RF24
 #define MY_RF24_CHANNEL 					96
 #define MY_TRANSPORT_WAIT_READY_MS 			(5000ul)
