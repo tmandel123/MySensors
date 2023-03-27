@@ -3,11 +3,11 @@
 #############################		Versionen		###################################
  
 20230301 Version 1.07		mySendSketchInfo nach sendSketchInfo
-
+20230307 Version 1.08		firstLoop eingeführt
 
 */
 
-#define SKETCH_VER            				"1.07"        			// Sketch version
+#define SKETCH_VER            				"1.08"        			// Sketch version
 #define SKETCH_NAME           				"Gateway"   			// Optional child sensor name
 
 
@@ -43,10 +43,10 @@ RF24_PA_LOW = 	-12dBm 		1	R_TX_Powerlevel_Pct		#Gateway Serial Kanal 96 hat mehr
 RF24_PA_HIGH = 	-6dBm 		2	R_TX_Powerlevel_Pct
 RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 */
-#define MY_RF24_PA_LEVEL 					RF24_PA_HIGH  //EchoNote hatte Max -> Reichweite bis Gartenhaus (-29) und noch Empfangen (-149) bis hinter Steins Haus
+#define MY_RF24_PA_LEVEL 					RF24_PA_LOW  //EchoNote hatte Max -> Reichweite bis Gartenhaus (-29) und noch Empfangen (-149) bis hinter Steins Haus
 // #define MY_RF24_PA_LEVEL 					RF24_PA_MAX
 #define MY_RADIO_RF24
-#define MY_RF24_CHANNEL 					96
+// #define MY_RF24_CHANNEL 					96
 // #define MY_TRANSPORT_WAIT_READY_MS 			(5000ul)
 
 // #define MY_NODE_ID 							52
@@ -74,7 +74,8 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 #include <MySensors.h>
 #include "C:\_Lokale_Daten_ungesichert\Arduino\MySensors\CommonFunctions.h" //muss nach allen anderen #defines stehen
 
-uint32_t lastHeartBeat = HEARTBEAT_INTERVAL;
+uint32_t 	lastHeartBeat	= 0;
+bool		firstLoop		= true;
 
 
 void setup()
@@ -92,10 +93,11 @@ void presentation()
 void loop()
 {
 	uint32_t currentTime = millis();
-	if (currentTime - lastHeartBeat > (uint32_t)HEARTBEAT_INTERVAL)
+	if ((currentTime - lastHeartBeat > (uint32_t)HEARTBEAT_INTERVAL) || firstLoop)
 	{
 		myHeartBeatLoop();
 		lastHeartBeat = currentTime;
+		firstLoop=false;
 	}
 }
 
