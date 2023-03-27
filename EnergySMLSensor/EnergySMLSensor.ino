@@ -14,11 +14,12 @@
 20221222 Version 2.0-002	SEND_WAIT eingeführt, weil sonst Übertragungen über einen Repeater verloren gehen
 20230103 Version 2.0-003	Über Kanal msgDebugReturnString wird mitgeteilt, falls der Sensor keine Daten ausliestausliest. Power wird als "---" übermittelt
 20230105 Version 2.0-004	bei msgPowerMeter.setType V_VAR1 und V_VAR vertauscht um kompatibel mit EnergyMeterPulseSensor.ino zu bleiben
+20230315 Version 2.05		Power der Phasen und Einspeisung als default deaktiviert, werden nur noch über debugLevel 1 ausgegeben, dafür SEND_FREQUENCY auf 15 Sekunden verkleinert
 
 *************************************************/
 
 
-#define SKETCH_VER            				"2.0-004"        		// Sketch version
+#define SKETCH_VER            				"2.05"        		// Sketch version
 #define SKETCH_NAME           				"EnergyMeter"   		// Optional child sensor name
 
 
@@ -53,16 +54,14 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 #define MY_RADIO_RF24
 #define MY_RF24_CHANNEL 					96
 #define MY_TRANSPORT_WAIT_READY_MS 			(5000ul)
-// #define MY_TRANSPORT_SANITY_CHECK			//enable regular transport sanity checks -> wirkt nur bei Gateway oder Repeater, ist dort per default aktiviert
 
 
 #define MY_NODE_ID 							100
-// #define MY_PARENT_NODE_ID 					100
-// #define MY_PARENT_NODE_IS_STATIC
-// #define MY_PASSIVE_NODE
+#define MY_PARENT_NODE_ID 					0
+#define MY_PARENT_NODE_IS_STATIC
+// #define MY_PASSIVE_NODE					// RSSI wird dann nicht ausgewertet und bleibt immer bei -29
 
 
-#define MY_INDICATION_HANDLER									//erlaubt rewrite der Funktion void indication(indication_t ind) 
 
 
 
@@ -72,8 +71,6 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 #define MAX_WATT							12000				// Max watt value to report. This filetrs outliers.
 
 #define EEPROM_DEVICE_DEBUG_LEVEL			0					//8  Bit	Position im Flash
-#define EEPROM_METER_VALUE					1					//32 Bit	Position im Flash
-#define	DEFAULT_METER_VALUE					18010892			// last seen Value from Enerny Meter to set to the EEPROM
 #define MAX_DEBUG_LEVEL         			9
 
 // Sonstige Werte
@@ -81,13 +78,13 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 
 #define HEARTBEAT_INTERVAL					300000				//default: 300000
 #define INTERNALS_UPDATE_INTERVAL			3600000				//default: 3600000	jede Stunde Update senden (Debug, Threshold usw)
-#define SEND_FREQUENCY						30000				//default: 30000	Minimum time between send (in milliseconds). We don't wnat to spam the gateway.
+#define SEND_FREQUENCY_SLOW					30000				//default: 30000	Minimum time between send (in milliseconds). We don't wnat to spam the gateway.
+#define SEND_FREQUENCY_FAST					15000				//default: 10000	Minimum time between send (in milliseconds). when debugLevel = 1
 #define SEND_ERROR_TIME						180000				//default: 180000	Alle 3 Minuten warnen
 #define WAIT_TIME							2000				//default: 2000		Wartezeit am Ende von loop(), wait verarbeitet eingehende Nachrichten
 
 
-
-#define MY_BAUD_RATE						(9600ul)			//DEBUG_PRINT nur mit dieser Datenrate ausgeben, weil Hardware Serial auch zum Einlesen benötigt wird
+#define MY_BAUD_RATE						(9600ul)			//DEBUG_PRINT nur mit dieser Datenrate ausgeben, weil Hardware Serial auch zum Einlesen benötigt wird und 9600 Baud vom Stromzähler kommen
 
 
 /** Werte für Debug überschreiben **/
@@ -107,7 +104,8 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 #define WITH_HWTIME
 #define WITH_RF24_INFO						// übermittel RSSI, PA_Level, RF_Channel
 #define WITH_NODE_INFO						// übermittel NodeID, ParentNodeID
-
+#define MY_INDICATION_HANDLER				//erlaubt rewrite der Funktion void indication(indication_t ind) 
+#define AUTO_REBOOT							// falls MY_INDICATION_HANDLER aktiviert wurde und txERR > 100, dann Node rebooten
 
 #include "sml.h"
 // #include <stdio.h>
@@ -122,6 +120,7 @@ uint32_t 			lastSend;
 uint32_t 			lastHeartBeat 		= 0;
 uint32_t 			lastInternalsUpdate = 0; 
 uint32_t 			lastPulseTime 		= 0;
+uint32_t			sendFrequency		= uint32_t(SEND_FREQUENCY_FAST);
 signed long 		PowerAll			= 0;
 signed long 		PowerL1				= 0;
 signed long 		PowerL2				= 0;
@@ -182,22 +181,33 @@ void readByte(unsigned char currentChar)
 
 void preHwInit() //kein serieller Output 
 {
+	#if defined(MY_DISABLED_SERIAL)
+	  //Serielles Interface nur setzten, falls nicht schon von MySensors Framework erledledigt
+		#if defined SER_DEBUG
+			DEBUG_SERIAL(MY_BAUD_RATE); // MY_BAUD_RATE from MyConfig.h 115200ul, gehört nach preHwInit. Falls in before(), friert der Arduino ein
 
+		#else
+			Serial.begin(MY_BAUD_RATE);
+
+		#endif
+	#endif
 }
 
 void before() 
 {
 	
-	//Serielles Interface nur setzten, falls nicht schon von MySensors Framework erledledigt
-	#if defined SER_DEBUG
-		DEBUG_SERIAL(MY_BAUD_RATE);	// MY_BAUD_RATE from MyConfig.h 115200ul, gehört nach preHwInit. Falls in before(), friert der Arduino ein
-		DEBUG_PRINTLN("starting serial interface with debugging");
+	#if defined(MY_DISABLED_SERIAL)
+	  //Serielles Interface nur setzten, falls nicht schon von MySensors Framework erledledigt
+		#if defined SER_DEBUG
+			DEBUG_PRINTLN(F("NO MySensors Serial Interface. Starting own Interface for Debug"));
+		#else
+			Serial.println(F("NO MySensors Serial Interface. No Debug"));
+		#endif
 	#else
-		Serial.begin(MY_BAUD_RATE);
-		Serial.println(F("starting serial interface without debugging"));
+		Serial.println(F("MySensors already activated Serial Interface"));
 	#endif
-	
-	DEBUG_PRINTLN("before");
+  
+	DEBUG_PRINTLN(F("before"));
 	
 	debugLevel = loadState(EEPROM_DEVICE_DEBUG_LEVEL); 	//8 Bit
 	if (debugLevel>MAX_DEBUG_LEVEL)
@@ -212,11 +222,11 @@ void before()
 
 void setup()
 {
-	DEBUG_PRINTLN("setup: ");
+	DEBUG_PRINTLN(F("setup: "));
 
 	lastHeartBeat=millis();
 	lastSend=lastHeartBeat;
-	lastPulseTime = lastHeartBeat - (uint32_t)SEND_FREQUENCY ;	//Wert reduzieren, damit gleich zu beginn im loop() die serielle Schnittstelle abgefragt wird.
+	lastPulseTime = lastHeartBeat - (uint32_t)SEND_FREQUENCY_FAST ;	//Wert reduzieren, damit gleich zu beginn im loop() die serielle Schnittstelle abgefragt wird.
 	lastInternalsUpdate = lastHeartBeat;
 }
 
@@ -237,7 +247,7 @@ void loop()
 {
 	uint32_t currentTime = millis();
 	
-	if ((currentTime - lastPulseTime) >  (uint32_t)SEND_FREQUENCY)
+	if ((currentTime - lastPulseTime) >  sendFrequency)
 	{
 		unsigned char incomingByte;
 
@@ -286,15 +296,19 @@ void loop()
 		wait(SEND_WAIT);
 		send(msgPowerMeter.setType(V_VAR1).set(SumWhConsum));  // Send watt value to gw	
 		wait(SEND_WAIT);
-		send(msgPowerMeter.setType(V_VAR).set(SumWhFeed));  // Send watt value to gw	
-		wait(SEND_WAIT);
-		// 10_MYSENSORS_DEVICE.pm S_POWER => { receives => [V_VAR1], sends => [V_WATT,V_KWH,V_VAR,V_VA,V_POWER_FACTOR,V_VAR1] }, # Power measuring device, like power meters	
-		send(msgPowerPhase.setType(V_VAR1).set(PowerL1));
-		wait(SEND_WAIT);
-		send(msgPowerPhase.setType(V_VAR2).set(PowerL2)); 
-		wait(SEND_WAIT);
-		send(msgPowerPhase.setType(V_VAR3).set(PowerL3));  
-		wait(SEND_WAIT);
+		
+		if (debugLevel > 0)
+		{
+			send(msgPowerMeter.setType(V_VAR).set(SumWhFeed));  // Send watt value to gw	
+			wait(SEND_WAIT);
+			// 10_MYSENSORS_DEVICE.pm S_POWER => { receives => [V_VAR1], sends => [V_WATT,V_KWH,V_VAR,V_VA,V_POWER_FACTOR,V_VAR1] }, # Power measuring device, like power meters	
+			send(msgPowerPhase.setType(V_VAR1).set(PowerL1));
+			wait(SEND_WAIT);
+			send(msgPowerPhase.setType(V_VAR2).set(PowerL2)); 
+			wait(SEND_WAIT);
+			send(msgPowerPhase.setType(V_VAR3).set(PowerL3));  
+			wait(SEND_WAIT);
+		}
 	
 		float kwh = ((float)SumWhConsum/((float)PULSE_FACTOR));
 		send(msgPowerMeter.setType(V_KWH).set(kwh, 3));  // Send kwh value to gw
@@ -329,6 +343,14 @@ void loop()
 	
 }
 
+// debugLevel switches
+
+//	0 		SEND_FREQUENCY_FAST
+//	1		SEND_FREQUENCY_SLOW, alle 3 Phasen und Einspeisung Gesamt
+//	3		showEEpromHex
+//	9		Reboot /Arduino hängt sich auf, wenn default Bootloader installiert ist. Optiboot V8 von 2018 funktioniert (https://github.com/Optiboot/optiboot/releases/tag/v8.0)
+
+
 void receive(const MyMessage &message)
 {
 	DEBUG_PRINT(F("rec Sens: "));
@@ -342,12 +364,17 @@ void receive(const MyMessage &message)
 				debugLevel = message.getByte();
 				if (debugLevel == 0)
 				{
+					sendFrequency = uint32_t(SEND_FREQUENCY_FAST);
 					send(msgDebugReturnString.set(F("dbg0")));
+					saveState(EEPROM_DEVICE_DEBUG_LEVEL, debugLevel);//8 Bit
+
 					//ToDo: noch nicht implementiert. debugLevel Variable wird auch nicht im EEPROM gespeichert
 				}	
 				if (debugLevel == 1)
 				{
+					sendFrequency = uint32_t(SEND_FREQUENCY_SLOW);
 					send(msgDebugReturnString.set(F("dbg1")));
+					saveState(EEPROM_DEVICE_DEBUG_LEVEL, debugLevel);//8 Bit
 				}
 				if (debugLevel == 3)
 				{
