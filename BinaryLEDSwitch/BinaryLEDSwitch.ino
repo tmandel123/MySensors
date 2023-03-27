@@ -1,4 +1,11 @@
 /**
+
+20221125 Version 1.0-009	Neuerungen anderer Nodes aus CommonFunctions.h übernommen
+
+
+
+
+
 Repository:		https://github.com/tmandel123/MySensors
 
 ToDo in FHEM
@@ -42,22 +49,10 @@ Testen mit Arduino Nano und LEDPIN 13 statt 5
 // #define SER_DEBUG
 #define MY_SPECIAL_DEBUG									// für Extended Debug in FHEM
 // #define MY_DEBUG_VERBOSE_CORE
-#define MY_SPLASH_SCREEN_DISABLED
+// #define MY_SPLASH_SCREEN_DISABLED
 // #define MY_SIGNAL_REPORT_ENABLED
 
-//	###################   Features   #####################
-// #define MY_REPEATER_FEATURE
-// #define MY_GATEWAY_SERIAL
-// #define MY_INCLUSION_MODE_FEATURE
-// #define MY_INCLUSION_BUTTON_FEATURE
-// #define MY_INCLUSION_MODE_BUTTON_PIN 3
 
-//	###################   LEDs   #####################
-// #define MY_WITH_LEDS_BLINKING_INVERSE
-// #define MY_DEFAULT_RX_LED_PIN				17
-// #define MY_DEFAULT_TX_LED_PIN 				18
-// #define MY_DEFAULT_ERR_LED_PIN				19
-// #define MY_DEFAULT_LED_BLINK_PERIOD 		10
 
 // ###################   Transport   #####################
 /*
@@ -67,34 +62,46 @@ RF24_PA_HIGH = 	-6dBm 		2	R_TX_Powerlevel_Pct
 RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 */
 
-#define MY_RF24_PA_LEVEL 					RF24_PA_LOW
+#define MY_RF24_PA_LEVEL 					RF24_PA_MAX
 #define MY_RADIO_RF24
-#define MY_RF24_CHANNEL 					96
-// #define MY_TRANSPORT_WAIT_READY_MS 			(5000ul)
-// #define MY_TRANSPORT_SANITY_CHECK	//enable regular transport sanity checks -> wirkt nur bei Gateway oder Repeater, ist dort per default aktiviert
+// #define MY_RF24_CHANNEL 					96
+#define MY_TRANSPORT_WAIT_READY_MS 			(5000ul)
 
 #define MY_NODE_ID 							110
-// #define MY_PARENT_NODE_ID 					100		//without this passive node broadcasts everything to parent 255 (dont know what happens if 2 repeater receive this at the same time)
-// #define MY_PARENT_NODE_IS_STATIC
+#define MY_PARENT_NODE_ID 					0		//without this passive node broadcasts everything to parent 255 (dont know what happens if 2 repeater receive this at the same time)
+#define MY_PARENT_NODE_IS_STATIC
 // #define MY_PASSIVE_NODE
 // #define MY_CORE_ONLY						// does not call preHwInit() and before(), IRQ seems not to work
 
-#define MY_INDICATION_HANDLER									//erlaubt rewrite der Funktion void indication(indication_t ind) 
 
 // ###################   Node Spezifisch   #####################
-#define SKETCH_VER            				"1.0-007"        			// Sketch version
+#define SKETCH_VER            				"1.0-009"        			// Sketch version
 #define SKETCH_NAME           				"LEDSwitch"   				// Optional child sensor name
+
+
+
+#define MY_SMART_SLEEP_REVOKE_WAIT_DURATION_MS (700ul) 	// 300 seems to be OK (smaller values let the controller think that the node is still sleeping)
+#define MY_SMART_SLEEP_WAIT_DURATION_MS		(1000ul)						//war 1000ul
+#define SLEEP_TIME							30000
+#define	TOGGLE_BUTTON						3
+
+
+
+
+// ###################   Allgemeine MySensors Funktionen aus CommonFunctions.h (erhöht den Speicherverbrauch   #####################
 
 // #define WITH_BUTTON
 #define WITH_SLEEP
-#define MY_SMART_SLEEP_REVOKE_WAIT_DURATION_MS (300ul) 	// 300 seems to be OK (smaller values let the controller think that the node is still sleeping)
 
-#define SLEEP_TIME							30000
-#define MY_SMART_SLEEP_WAIT_DURATION_MS		(500ul)						//war 1000ul
-#define	TOGGLE_BUTTON						3
+#define WITH_HWTIME
+#define WITH_RF24_INFO						// übermittel RSSI, PA_Level, RF_Channel
+#define WITH_NODE_INFO						// übermittel NodeID, ParentNodeID
+#define MY_INDICATION_HANDLER				//erlaubt rewrite der Funktion void indication(indication_t ind) 
+#define AUTO_REBOOT							// falls MY_INDICATION_HANDLER aktiviert wurde und txERR > 100, dann Node rebooten
+
 
 #ifdef MY_REPEATER_FEATURE 
-#undef WITH_SLEEP 
+	#undef WITH_SLEEP 
 #endif
 
 #include <MySensors.h>
@@ -102,46 +109,71 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 
 
 #define MAX_LED_LEVEL						1
-#define LED_LEVEL_EEPROM					0					// Startwert nach Stromwiederkehr
+#define LED_LEVEL_EEPROM					0					//	Speicherstelle im EEPROM
+#define LED_LEVEL_START						1					//  Startwert nach Stromwiederkehr
 #define	BLINK_DELAY							50
-#define HEARTBEAT_INTERVAL					300000				//später alle 5 Minuten, zum Test alle 30 Sekunden
+#define HEARTBEAT_INTERVAL					1800000				//	default: 1800000
 
-const int debounceTime = 15;  // debounce in milliseconds
-bool justReceived = false;
-bool firstRun = true;
-uint8_t	lastLevel = 0;
-uint8_t	heartBeatCounter = 0;
-uint32_t lastButtonPressed = 0;
-uint32_t lastHeartBeat = 0;
-volatile uint8_t currentLevel = 1; 			// Current LED level 0 or 1	// 8Bit, weil uint8_t so besser als bool ins EEPROM passt
+const int 	debounceTime 		= 15;  // debounce in milliseconds
+bool 		justReceived 		= false;
+bool 		firstRun 			= true;
+uint8_t		lastLevel 			= LED_LEVEL_START;
+uint8_t		heartBeatCounter 	= 0;
+uint32_t	lastButtonPressed 	= 0;
+uint32_t 	lastHeartBeat		= 0;
+volatile uint8_t currentLevel 	= LED_LEVEL_START; 			// Current LED level 0 or 1	// 8Bit, weil uint8_t so besser als bool ins EEPROM passt
 
 
-void preHwInit() 
+
+void preHwInit() //kein serieller Output 
 {
-	DEBUG_SERIAL(MY_BAUD_RATE);
-	pinMode(LED_PWM_PIN, OUTPUT);   // sets the pin as output Active High, LED+ on Port 5 LED- on GND
-	#ifdef WITH_BUTTON
-	pinMode(TOGGLE_BUTTON, INPUT_PULLUP);   // sets the pin as output
-	#endif
-	Blink();
-	DEBUG_PRINTLN("preHwInit done");
+	#if defined(MY_DISABLED_SERIAL)
+	  Serielles Interface nur setzten, falls nicht schon von MySensors Framework erledledigt
+		#if defined SER_DEBUG
+			DEBUG_SERIAL(MY_BAUD_RATE); // MY_BAUD_RATE from MyConfig.h 115200ul, gehört nach preHwInit. Falls in before(), friert der Arduino ein
 
+		#else
+			Serial.begin(MY_BAUD_RATE);
+
+		#endif
+	#endif
 }
+
 
 void before() 
 {
-	DEBUG_PRINTLN("before");
+	
+	#if defined(MY_DISABLED_SERIAL)
+	  Serielles Interface nur setzten, falls nicht schon von MySensors Framework erledledigt
+		#if defined SER_DEBUG
+			DEBUG_PRINTLN(F("NO MySensors Serial Interface. Starting own Interface for Debug"));
+		#else
+			Serial.println(F("NO MySensors Serial Interface. No Debug"));
+		#endif
+	#else
+		Serial.println(F("MySensors already activated Serial Interface"));
+	#endif
+	
+	DEBUG_PRINTLN(F("before"));
+	
+	pinMode(LED_DIGITAL_PIN, OUTPUT);   // sets the pin as output Active High, LED+ on Port 5 LED- on GND
+	#ifdef WITH_BUTTON
+	pinMode(TOGGLE_BUTTON, INPUT_PULLUP);   // sets the pin as output
+	#endif
+	
 	Blink();
+	
 	currentLevel = loadState(LED_LEVEL_EEPROM);
-	if (currentLevel>MAX_LED_LEVEL)
+	if ((currentLevel>MAX_LED_LEVEL) || (currentLevel != LED_LEVEL_START))
 	{
-		currentLevel=0;
-		DEBUG_PRINTLN(F("Save: LED_LEVEL_EEPROM to 0"));
+		currentLevel=LED_LEVEL_START;
+		DEBUG_PRINT(F("Save: LED_LEVEL_EEPROM to "));
+		DEBUG_PRINTLN(LED_LEVEL_START);
 		saveState(LED_LEVEL_EEPROM, currentLevel);//8 Bit
 	}
 	DEBUG_PRINT(F("restore last LED level: "));
 	DEBUG_PRINTLN(currentLevel);
-	digitalWrite( LED_PWM_PIN, currentLevel );
+	digitalWrite( LED_DIGITAL_PIN, currentLevel );
 }
 
 
@@ -149,7 +181,6 @@ void setup()
 {
 	DEBUG_PRINTLN("Setup");
 	Blink();
-	send( msgSwitchState.set(currentLevel) );
 	setIrqOn(); // wird weiter unten nur definiert, falls #WITH_BUTTON definiert wurde
 }
 
@@ -167,6 +198,8 @@ void loop()
 	uint32_t currentTime = millis();
 	if (firstRun)
 	{
+		DEBUG_PRINTLN("firstRun");
+		setLED(currentLevel);
 		myHeartBeatLoop();
 		firstRun=false;
 	}
@@ -214,8 +247,8 @@ void loop()
 		if (TimeSinceHeartBeat > (uint32_t)HEARTBEAT_INTERVAL)
 		{
 			lastHeartBeat = currentTime;
-			sendHeartbeat();
 			myHeartBeatLoop();
+			send( msgSwitchState.set(currentLevel) );
 		}
 	}
 	#ifdef WITH_SLEEP
@@ -254,11 +287,11 @@ void setLED(uint8_t newLevel)
 	DEBUG_PRINTLN( newLevel );	
 	if (newLevel == 0)
 	{
-		digitalWrite(LED_PWM_PIN,0);
+		digitalWrite(LED_DIGITAL_PIN,0);
 	}
 	else
 	{
-		digitalWrite(LED_PWM_PIN,newLevel);
+		digitalWrite(LED_DIGITAL_PIN,newLevel);
 	}
 	// saveState(LED_LEVEL_EEPROM, newLevel);//8 Bit
 	send( msgSwitchState.set(newLevel) );
@@ -266,12 +299,12 @@ void setLED(uint8_t newLevel)
 
 void Blink()
 {
-	DEBUG_PRINTLN(F("digitalWrite Blink"));
-	digitalWrite( LED_PWM_PIN, 1 );
+	DEBUG_PRINTLN(F("Blink"));
+	digitalWrite( LED_DIGITAL_PIN, 1 );
 	wait(BLINK_DELAY); 
-	digitalWrite( LED_PWM_PIN, 0 );
+	digitalWrite( LED_DIGITAL_PIN, 0 );
 	wait(BLINK_DELAY*2);
-	digitalWrite( LED_PWM_PIN, currentLevel );
+	digitalWrite( LED_DIGITAL_PIN, currentLevel );
 }
 
 #ifdef WITH_BUTTON
