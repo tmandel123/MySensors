@@ -32,6 +32,8 @@
 20221114 Version 3.03		SEND_WAIT entfernt
 							SEND_FREQUENCY auf 20Sec reduziert
 							V_FLOW mindestens einmal je Stunde übertragen
+20221114 Version 3.04		SEND_WAIT wieder eingebaut und MY_INDICATION_HANDLER
+20221114 Version 3.05		flow 0 bei Inaktivität zusammen mit myHeartBeatLoop übermitteln
 
 
 #############################		Settings		###################################
@@ -45,14 +47,14 @@ set MYSENSOR_102 value52 338900 				//set a now gas/water meter value
 *************************************************/
 
 
-#define SKETCH_VER						"3.03"				// Sketch version
+#define SKETCH_VER						"3.05"				// Sketch version
 #define MY_RADIO_RF24
 
 
 //	folgendes muss vor MySensors.h stehen
 //	###################   Debugging   #####################
-#define MY_DEBUG											//Output kann im LogParser analysiert werden https://www.mysensors.org/build/parser
-#define SER_DEBUG											// aus CommonFunctions.h für eigenes DEBUG_PRINT
+// #define MY_DEBUG											//Output kann im LogParser analysiert werden https://www.mysensors.org/build/parser
+// #define SER_DEBUG											// aus CommonFunctions.h für eigenes DEBUG_PRINT
 #define MY_SPECIAL_DEBUG									// für Extended Debug in FHEM
 // #define MY_DEBUG_VERBOSE_RF24								//Testen, welche zusätzlichen Infos angezeigt werden
 // #define MY_SPLASH_SCREEN_DISABLED
@@ -77,15 +79,15 @@ RF24_PA_LOW = 	-12dBm 		1	R_TX_Powerlevel_Pct				optimal für NRF24L01+
 RF24_PA_HIGH = 	-6dBm 		2	R_TX_Powerlevel_Pct
 RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 */
-#define MY_RF24_PA_LEVEL 					RF24_PA_LOW  //EchoNote hatte Max -> Reichweite bis Gartenhaus (-29) und noch Empfangen (-149) bis hinter Steins Haus
+#define MY_RF24_PA_LEVEL 					RF24_PA_MAX  //EchoNote hatte Max -> Reichweite bis Gartenhaus (-29) und noch Empfangen (-149) bis hinter Steins Haus
 #define MY_RADIO_RF24
 #define MY_RF24_CHANNEL 					96
 #define MY_TRANSPORT_WAIT_READY_MS 			(5000ul)
 // #define MY_TRANSPORT_SANITY_CHECK			//enable regular transport sanity checks -> wirkt nur bei Gateway oder Repeater, ist dort per default aktiviert
 
 
-// #define MY_PARENT_NODE_ID 					0
-// #define MY_PARENT_NODE_IS_STATIC
+#define MY_PARENT_NODE_ID 					0
+#define MY_PARENT_NODE_IS_STATIC
 // #define MY_PASSIVE_NODE
 
 
@@ -131,9 +133,10 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 
 // #define	WITH_BATTERY						//DS18B20 Sensoren funktionieren nicht mit weniger als 2,5V, eigentlich müsste OneWireMaster mit 5V und Netzteil betriebern werden
 #define WITH_HWTIME
-#define WITH_RF24_INFO						// übermittel RSSI, PA_Level, RF_Channel
-#define WITH_NODE_INFO						// übermittel NodeID, ParentNodeID
-
+#define WITH_RF24_INFO							// übermittel RSSI, PA_Level, RF_Channel
+#define WITH_NODE_INFO							// übermittel NodeID, ParentNodeID
+#define MY_INDICATION_HANDLER					//erlaubt rewrite der Funktion void indication(indication_t ind) Tx_ERR, Tx_OK, TX_RSSI
+#define AUTO_REBOOT							// falls MY_INDICATION_HANDLER aktiviert wurde und txERR > 100, dann Node rebooten
 
 
 
@@ -153,7 +156,7 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 
 // Sonstige Werte
 #define SEND_FREQUENCY						20000				//default: 20000	Minimum time between send (in milliseconds). We don't wnat to spam the gateway.
-#define MAX_HEARTBEAT_CYCLE					15					//default: 15		X * SEND_FREQUENCY
+#define MAX_HEARTBEAT_CYCLE					30					//default: 30		X * SEND_FREQUENCY
 #define MAX_INTERNALS_UPDATE_CYCLE			180					//default: 180		X * SEND_FREQUENCY, jede Stunde Update senden (Debug, Threshold usw) (120*30Sekunden)
 #define MAX_FLOW_TO_ZERO_CYLCE				6					//default: 6		X * SEND_FREQUENCY, nach 2 Minuten ohne Durchfluss Werte auf 0 setzen
 
@@ -323,6 +326,11 @@ void loop()
 		
 		if (heartBeatCycle >= (uint8_t)MAX_HEARTBEAT_CYCLE)
 		{
+			if (flow == 0.0)//bei Inaktivität trotzdem einen Flow melden.
+			{
+				send(msgAnalogMeter.setType(V_FLOW).set(flow, 1));
+				wait(SEND_WAIT);
+			}
 			heartBeatCycle=0;
 			myHeartBeatLoop();
 		}
@@ -337,18 +345,27 @@ void loop()
 			writeEeprom32(EEPROM_METER_VALUE, pulseCount);
 
 			send(msgDebugLevel.set(debugLevel));
+			wait(SEND_WAIT);
 			send(msgNewMeterValue.set(pulseCount));
+			wait(SEND_WAIT);
 			float volume = (float)pulseCount / ((float)PULSE_FACTOR);
+			wait(SEND_WAIT);
 			send(msgAnalogMeter.setType(V_VOLUME).set(volume, (uint8_t)VOLUME_DIGITS));
+			wait(SEND_WAIT);
 			send(msgAnalogMeter.setType(V_FLOW).set(flow, 1));
-
+			wait(SEND_WAIT);
 			send(msgAnalogDebug.setType(V_VAR1).set(readEeprom16(EEPROM_LO_THRESHOLD)));
+			wait(SEND_WAIT);
 			send(msgAnalogDebug.setType(V_VAR2).set(readEeprom16(EEPROM_HI_THRESHOLD)));
+			wait(SEND_WAIT);
 			
 			send(msgAnalogDebug.setType(V_VAR3).set(minValue));
+			wait(SEND_WAIT);
 			send(msgAnalogDebug.setType(V_VAR4).set(maxValue));
+			wait(SEND_WAIT);
 			
 			send(msgDebugReturnString.set(F("---")));
+			wait(SEND_WAIT);
 		}
 		
 		
@@ -359,7 +376,9 @@ void loop()
 			{
 				flow = 0;
 				send(msgDebugReturnString.set(F("Flw0")));
+				wait(SEND_WAIT);
 				send(msgAnalogMeter.setType(V_FLOW).set(flow, 1));
+				wait(SEND_WAIT);
 			}
 		}
 
