@@ -52,7 +52,7 @@ RF24_PA_HIGH = 	-6dBm 		2	R_TX_Powerlevel_Pct
 RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 */
 
-#define MY_RF24_PA_LEVEL 					RF24_PA_LOW			//default für MYSTemp1(NodeID 150) = RF24_PA_LOW (solange er im Heizraum hängt)
+#define MY_RF24_PA_LEVEL 					RF24_PA_MAX			//default für MYSTemp1(NodeID 150) = RF24_PA_LOW (solange er im Heizraum hängt)
 #define MY_RADIO_RF24
 // #define MY_RF24_CE_PIN 						10 				//nur für RF-Nano verwenden
 // #define MY_RF24_CS_PIN 						9				//nur für RF-Nano verwenden
@@ -74,7 +74,7 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 // #define MY_PARENT_NODE_ID 					0				//without this the node broadcasts everything to parent 255 (dont know what happens, if 2 repeater receive this at the same time)
 // #define MY_PARENT_NODE_IS_STATIC
 // #define MY_PASSIVE_NODE										//default: deaktiviert -> Nur bei Batteriesensoren sillvoll, die im Grenzbereich für den Empfang liegen
-#define SLEEP_TIME							600000				//default:	180000 bei Batterie Sensoren 600000
+// #define SLEEP_TIME							600000				//default:	180000 bei Batterie Sensoren 600000
 
 // ########  ToDo andere Nodes  #######################################
 
@@ -123,7 +123,8 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 	#define WITH_HWTIME
 	#define WITH_RF24_INFO						// übermittel RSSI, PA_Level, RF_Channel
 	#define WITH_NODE_INFO						// übermittel NodeID, ParentNodeID
-	#define MY_INDICATION_HANDLER                  //erlaubt rewrite der Funktion void indication(indication_t ind) Tx_ERR, Tx_OK, TX_RSSI
+	#define MY_INDICATION_HANDLER               //erlaubt rewrite der Funktion void indication(indication_t ind) Tx_ERR, Tx_OK, TX_RSSI
+	#define AUTO_REBOOT							// falls MY_INDICATION_HANDLER aktiviert wurde und RSSI schlechter als -70, dann Node rebooten
 
 
 #else
@@ -173,7 +174,16 @@ uint32_t		lastReadTemp	= 0;
 
 void preHwInit() //kein serieller Output 
 {
+	#if defined(MY_DISABLED_SERIAL)
+	  //Serielles Interface nur setzten, falls nicht schon von MySensors Framework erledledigt
+		#if defined SER_DEBUG
+			DEBUG_SERIAL(MY_BAUD_RATE); // MY_BAUD_RATE from MyConfig.h 115200ul, gehört nach preHwInit. Falls in before(), friert der Arduino ein
 
+		#else
+			Serial.begin(MY_BAUD_RATE);
+
+		#endif
+	#endif
 }
 
 void before() 
@@ -181,10 +191,8 @@ void before()
 	#if defined(MY_DISABLED_SERIAL)
 	  //Serielles Interface nur setzten, falls nicht schon von MySensors Framework erledledigt
 		#if defined SER_DEBUG
-			DEBUG_SERIAL(MY_BAUD_RATE); // MY_BAUD_RATE from MyConfig.h 115200ul, gehört nach preHwInit. Falls in before(), friert der Arduino ein
 			DEBUG_PRINTLN(F("NO MySensors Serial Interface. Starting own Interface for Debug"));
 		#else
-			Serial.begin(MY_BAUD_RATE);
 			Serial.println(F("NO MySensors Serial Interface. No Debug"));
 		#endif
 	#else
@@ -704,6 +712,13 @@ void receive(const MyMessage &message)
 				DEBUG_PRINTLN(debugLevel);
 				// DEBUG_PRINT(F("Strg "));
 				// DEBUG_PRINTLN(debugString);
+				
+				if (debugLevel == 0)
+				{
+					debugLevel=0;
+					saveState(EEPROM_DEVICE_DEBUG_LEVEL, debugLevel);//8 Bit
+					send(msgDebugReturnString.set(F("dbg0")));
+				}
 				
 				if (debugLevel == 1)
 				{
