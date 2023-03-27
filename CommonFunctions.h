@@ -9,6 +9,7 @@
 20230120 Verison 2.05		LED_ON nach MY_LED_ON wegen Namensgleichheit mit MySensors Bibliothek
 20230123 Verison 2.06		#if MY_NODE_ID >= 150 ... (vorher war nur > 150)
 20230228 Verison 2.07		zusätzliches #defindes für NoteID abhängiges Laden
+20230324 Verison 2.08		AUTO_REBOOT bei schlechten RSSI Werten (Vermutlich hängen sich die nRF24 Sender auf, Reboot verbessert sofort die SendeQuote), RSSI bildet den Durschnitt aus 4 statt 8 Durchläufen
 
 
 
@@ -103,9 +104,9 @@
 #define CHILD_PARENT_NODE					81
 #define	CHILD_PARENT_NODE_TEXT				(F("ParentNode"))
 #define CHILD_TX_OK							82
-#define	CHILD_TX_OK_TEXT					(F("Tx OK"))
+#define	CHILD_TX_OK_TEXT					(F("TX_OK"))
 #define CHILD_TX_ERR 						83
-#define	CHILD_TX_ERR_TEXT 					(F("Tx ERR"))
+#define	CHILD_TX_ERR_TEXT 					(F("TX_ERR"))
 
 #define CHILD_CPU_TEMPERATURE				88
 #define	CHILD_CPU_TEMPERATURE_TEXT			(F("CpuTemp"))
@@ -162,7 +163,7 @@
 
 
 
-#if ((MY_NODE_ID > 99 && MY_NODE_ID < 101) || (MY_NODE_ID > 102 && MY_NODE_ID < 110))
+#if (MY_NODE_ID > 100 && MY_NODE_ID < 110)	// von Gas und Wasserzähler benötigt, Seit EnergyMeter als SML Version nicht mehr benötigt
 	MyMessage msgNewMeterValue					(CHILD_NEW_METER_VALUE,			V_TEXT);			//71
 #endif
 
@@ -326,13 +327,23 @@ void myHeartBeatLoop()
 	//CHILD_TX_RSSI
 	#ifdef WITH_RF24_INFO
 		nowRSSI=RF24_getSendingRSSI();
-		avgRSSI=((avgRSSI*7)+(nowRSSI))/8;
+		avgRSSI=((avgRSSI*3)+(nowRSSI))/4;
 		send(msgSendingRSSI.set(avgRSSI));
 		wait(SEND_WAIT);
 		send(msgPaLevel.set(PA_LEVEL_TEXT));
 		wait(SEND_WAIT);
 		send(msgRFChannel.set(MY_RF24_CHANNEL));
 		wait(SEND_WAIT);
+		
+		#ifdef AUTO_REBOOT
+			if (avgRSSI < -70 )
+			{
+				DEBUG_PRINTLN(F("AutoReboot: "));
+				send(msgDebugReturnString.set(F("AutoReboot")));
+				wait(SEND_WAIT);
+				hwReboot();			
+			}
+		#endif
 	#endif
 	
 	#ifdef WITH_NODE_INFO
@@ -367,6 +378,7 @@ void myHeartBeatLoop()
 		wait(SEND_WAIT);
 		txOK=0;
 		txERR=0;
+
 	#endif
 	
 	#ifdef WITH_BATTERY
