@@ -292,7 +292,10 @@ void loop()
 		DEBUG_PRINT(F("Einspeisung: "));
 		DEBUG_PRINTLN(SumWhFeed);
 		
-		send(msgPowerMeter.setType(V_WATT).set(PowerAll));  // Send watt value to gw	
+		send(msgPowerMeter.setType(V_WATT).set(PowerAll));  // Send watt value to gw
+		# ToDo Resend oder Ack bei wichtigen Werte (Power und Zählerstand
+		# https://forum.mysensors.org/topic/11687/node-to-node-ack
+		
 		wait(SEND_WAIT);
 		send(msgPowerMeter.setType(V_VAR1).set(SumWhConsum));  // Send watt value to gw	
 		wait(SEND_WAIT);
