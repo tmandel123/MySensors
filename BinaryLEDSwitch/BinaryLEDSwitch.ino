@@ -64,7 +64,7 @@ RF24_PA_MAX = 	 0dBm		3	R_TX_Powerlevel_Pct
 
 #define MY_RF24_PA_LEVEL 					RF24_PA_MAX
 #define MY_RADIO_RF24
-// #define MY_RF24_CHANNEL 					96
+#define MY_RF24_CHANNEL 					96
 #define MY_TRANSPORT_WAIT_READY_MS 			(5000ul)
 
 #define MY_NODE_ID 							110
