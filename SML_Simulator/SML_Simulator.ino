@@ -1,6 +1,11 @@
 // #include <Arduino.h>
 #include "DummyData.h"
 
+
+// IR LED Plus an TX-Pin
+// IR LED Minux + Vorwiderstand an GND
+
+
 void setup() {
 	Serial.begin(9600);
 	Serial.println(" ");

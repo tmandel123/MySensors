@@ -82,7 +82,8 @@ RF24_PA_MAX = 0dBm
 #define PING_INTERVAL	        			3000
 
 #include <MySensors.h>
-#include "C:\_Lokale_Daten_ungesichert\Arduino\MySensors\CommonFunctions.h" //muss nach allen anderen #defines stehen
+//#include "C:\_Lokale_Daten_ungesichert\Arduino\MySensors\CommonFunctions.h" //muss nach allen anderen #defines stehen
+#include "/home/tmandel/1_Entwicklung/git/MySensors/CommonFunctions.h" //muss nach allen anderen #defines stehen
 
 volatile	bool 		GotEchoResponse = false;
 volatile	bool 		CheckPingTimeout = false;
@@ -250,5 +251,3 @@ void receive(const MyMessage &message)
 	}
 		
 }
-
-
